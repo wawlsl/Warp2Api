@@ -82,6 +82,8 @@ REM 或使用 PowerShell 脚本
 - ✅ 按正确顺序启动两个服务器
 - ✅ 验证服务器健康状态
 - ✅ 显示关键配置信息
+- ✅ 显示完整的 API 接口 Token (WARP_JWT)
+- ✅ 显示 Roocode / KilloCode baseUrl
 - ✅ 实时监控服务器日志
 
 ### 📸 运行演示
