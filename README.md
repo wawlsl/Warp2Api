@@ -52,6 +52,7 @@
 
 #### 方法一：一键启动脚本（推荐）
 
+**Linux/macOS:**
 ```bash
 # 启动所有服务器
 ./start.sh
@@ -61,6 +62,19 @@
 
 # 查看服务器状态
 ./stop.sh status
+```
+
+**Windows:**
+```batch
+REM 使用批处理脚本
+start.bat          # 启动服务器
+stop.bat           # 停止服务器
+stop.bat status    # 查看服务器状态
+
+REM 或使用 PowerShell 脚本
+.\start.ps1        # 启动服务器
+.\start.ps1 -Stop  # 停止服务器
+.\start.ps1 -Verbose  # 启用详细日志
 ```
 
 启动脚本会自动：
@@ -296,6 +310,11 @@ Warp2Api/
 │   └── warp/                # Warp 特定代码
 ├── server.py                # Protobuf 桥接服务器
 ├── openai_compat.py         # OpenAI API 服务器
+├── start.sh                 # Linux/macOS 启动脚本
+├── stop.sh                  # Linux/macOS 停止脚本
+├── start.bat                # Windows 批处理启动脚本
+├── stop.bat                 # Windows 批处理停止脚本
+├── start.ps1                # Windows PowerShell 启动脚本
 ├── docs/                    # 项目文档
 │   └── screenshots/         # 项目截图
 └── pyproject.toml           # 项目配置
