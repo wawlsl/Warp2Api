@@ -248,6 +248,7 @@ function Show-Status {
     Write-Host "📍 Protobuf桥接服务器: http://localhost:8000"
     Write-Host "📍 OpenAI兼容API服务器: http://localhost:8010"
     Write-Host "📍 API文档: http://localhost:8010/docs"
+    Write-Host "🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1"
     Write-Host ""
     Write-Host "🔧 支持的模型:"
     Write-Host "   • claude-4-sonnet"
@@ -260,6 +261,24 @@ function Show-Status {
     Write-Host "   • gpt-5 (high reasoning)"
     Write-Host "   • o3"
     Write-Host "   • o4-mini"
+    Write-Host ""
+    Write-Host "🔑 当前API接口Token:"
+    if (Test-Path ".env") {
+        $envContent = Get-Content ".env"
+        $warpJwt = $null
+        foreach ($line in $envContent) {
+            if ($line -match '^WARP_JWT=(.*)$') {
+                $warpJwt = $matches[1].Trim('"')
+            }
+        }
+        if ($warpJwt) {
+            Write-Host "   $warpJwt"
+        } else {
+            Write-Host "   未设置"
+        }
+    } else {
+        Write-Host "   .env 文件不存在"
+    }
     Write-Host ""
     Write-Host "📝 测试命令:"
     Write-Host "Invoke-WebRequest -Uri 'http://localhost:8010/v1/chat/completions' -Method POST -ContentType 'application/json' -Body '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"

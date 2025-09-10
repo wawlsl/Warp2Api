@@ -169,6 +169,7 @@ show_status() {
     echo "📍 Protobuf桥接服务器: http://localhost:8000"
     echo "📍 OpenAI兼容API服务器: http://localhost:8010"
     echo "📍 API文档: http://localhost:8010/docs"
+    echo "🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1"
     echo
     echo "🔧 支持的模型:"
     echo "   • claude-4-sonnet"
@@ -181,6 +182,18 @@ show_status() {
     echo "   • gpt-5 (high reasoning)"
     echo "   • o3"
     echo "   • o4-mini"
+    echo
+    echo "🔑 当前API接口Token:"
+    if [ -f ".env" ]; then
+        WARP_JWT=$(grep "^WARP_JWT=" .env | cut -d'=' -f2- | sed 's/^"//' | sed 's/"$//')
+        if [ -n "$WARP_JWT" ]; then
+            echo "   $WARP_JWT"
+        else
+            echo "   未设置"
+        fi
+    else
+        echo "   .env 文件不存在"
+    fi
     echo
     echo "📝 测试命令:"
     echo "curl -X POST http://localhost:8010/v1/chat/completions \\"
