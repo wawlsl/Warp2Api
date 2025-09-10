@@ -115,6 +115,23 @@ if %errorlevel%==0 (
     echo ⚠️ 运行时请保证 https://app.warp.dev 网络联通性
     echo    如果网络连接失败，服务可能无法正常工作
 )
+
+REM 终端即时测试联通性并打印结果
+set "HTTP_CODE="
+set "RTT="
+for /f "tokens=1,2" %%a in ('curl -s -o NUL -w "%%{http_code} %%{time_total}" https://app.warp.dev 2^>NUL') do (
+    set "HTTP_CODE=%%a"
+    set "RTT=%%b"
+)
+if "%HTTP_CODE%"=="200" (
+    echo 🌐 当前 https://app.warp.dev 联通: 是 (HTTP %HTTP_CODE%, 耗时 %RTT%s)
+) else if "%HTTP_CODE%"=="301" (
+    echo 🌐 当前 https://app.warp.dev 联通: 是 (HTTP %HTTP_CODE%, 耗时 %RTT%s)
+) else if "%HTTP_CODE%"=="302" (
+    echo 🌐 当前 https://app.warp.dev 联通: 是 (HTTP %HTTP_CODE%, 耗时 %RTT%s)
+) else (
+    echo 🌐 当前 https://app.warp.dev 联通: 否 (HTTP %HTTP_CODE%)
+)
 goto :eof
 
 REM 启动Protobuf桥接服务器
@@ -192,7 +209,8 @@ echo ============================================
 echo 📍 Protobuf桥接服务器: http://localhost:8000
 echo 📍 OpenAI兼容API服务器: http://localhost:8010
 echo 📍 API文档: http://localhost:8010/docs
-echo 🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1
+echo 🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:8010/v1
+echo ⬇️ KilloCode 下载地址：https://app.kilocode.ai/users/sign_up?referral-code=df16bc60-be35-480f-be2c-b1c6685b6089
 echo.
 echo 🔧 支持的模型:http://127.0.0.1:8010/v1/models
 echo    • claude-4-sonnet

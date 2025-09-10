@@ -148,6 +148,19 @@ function Test-NetworkConnectivity {
         Write-Host "⚠️ 运行时请保证 https://app.warp.dev 网络联通性"
         Write-Host "   如果网络连接失败，服务可能无法正常工作"
     }
+
+    # 终端即时测试联通性并打印结果
+    try {
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $headResp = Invoke-WebRequest -Uri "https://app.warp.dev" -Method Head -TimeoutSec 10 -ErrorAction Stop
+        $sw.Stop()
+        $ms = [math]::Round($sw.Elapsed.TotalMilliseconds)
+        Write-Host "🌐 当前 https://app.warp.dev 联通: 是 (HTTP $($headResp.StatusCode), 耗时 ${ms}ms)"
+    }
+    catch {
+        $code = if ($_.Exception.Response -and $_.Exception.Response.StatusCode) { [int]$_.Exception.Response.StatusCode } else { "N/A" }
+        Write-Host "🌐 当前 https://app.warp.dev 联通: 否 (HTTP $code)"
+    }
 }
 
 # 检查端口是否被占用
@@ -264,7 +277,8 @@ function Show-Status {
     Write-Host "📍 Protobuf桥接服务器: http://localhost:8000"
     Write-Host "📍 OpenAI兼容API服务器: http://localhost:8010"
     Write-Host "📍 API文档: http://localhost:8010/docs"
-    Write-Host "🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1"
+    Write-Host "🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:8010/v1"
+    Write-Host "⬇️ KilloCode 下载地址：https://app.kilocode.ai/users/sign_up?referral-code=df16bc60-be35-480f-be2c-b1c6685b6089"
     Write-Host ""
     Write-Host "🔧 支持的模型:http://127.0.0.1:8010/v1/models"
     Write-Host "   • claude-4-sonnet"
