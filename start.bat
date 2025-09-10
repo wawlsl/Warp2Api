@@ -101,6 +101,22 @@ if errorlevel 1 (
 )
 goto :eof
 
+REM 检查网络连通性
+:check_network
+call :log_info "检查网络连通性..."
+
+REM 检查 https://app.warp.dev 的连通性
+curl -s --connect-timeout 10 --max-time 30 https://app.warp.dev >nul 2>&1
+if %errorlevel%==0 (
+    call :log_success "网络连通性检查通过"
+    echo ✅ 运行时请保证 https://app.warp.dev 网络联通性
+) else (
+    call :log_warning "网络连通性检查失败，请确保可以访问 https://app.warp.dev"
+    echo ⚠️ 运行时请保证 https://app.warp.dev 网络联通性
+    echo    如果网络连接失败，服务可能无法正常工作
+)
+goto :eof
+
 REM 启动Protobuf桥接服务器
 :start_bridge_server
 call :log_info "启动Protobuf桥接服务器..."
@@ -178,7 +194,7 @@ echo 📍 OpenAI兼容API服务器: http://localhost:8010
 echo 📍 API文档: http://localhost:8010/docs
 echo 🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1
 echo.
-echo 🔧 支持的模型:
+echo 🔧 支持的模型:http://127.0.0.1:8010/v1/models
 echo    • claude-4-sonnet
 echo    • claude-4-opus
 echo    • claude-4.1-opus
@@ -228,6 +244,7 @@ if "%1"=="stop" goto stop_servers
 REM 检查环境
 call :check_python
 call :check_dependencies
+call :check_network
 
 REM 启动服务器
 call :start_bridge_server

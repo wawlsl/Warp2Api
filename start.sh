@@ -98,6 +98,21 @@ check_dependencies() {
     fi
 }
 
+# 检查网络连通性
+check_network() {
+    log_info "检查网络连通性..."
+
+    # 检查 https://app.warp.dev 的连通性
+    if curl -s --connect-timeout 10 --max-time 30 https://app.warp.dev >/dev/null 2>&1; then
+        log_success "网络连通性检查通过"
+        echo "✅ 运行时请保证 https://app.warp.dev 网络联通性"
+    else
+        log_warning "网络连通性检查失败，请确保可以访问 https://app.warp.dev"
+        echo "⚠️ 运行时请保证 https://app.warp.dev 网络联通性"
+        echo "   如果网络连接失败，服务可能无法正常工作"
+    fi
+}
+
 # 启动Protobuf桥接服务器
 start_bridge_server() {
     log_info "启动Protobuf桥接服务器..."
@@ -171,7 +186,7 @@ show_status() {
     echo "📍 API文档: http://localhost:8010/docs"
     echo "🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1"
     echo
-    echo "🔧 支持的模型:"
+    echo "🔧 支持的模型:http://127.0.0.1:8010/v1/models"
     echo "   • claude-4-sonnet"
     echo "   • claude-4-opus"
     echo "   • claude-4.1-opus"
@@ -234,6 +249,7 @@ main() {
     # 检查环境
     check_python
     check_dependencies
+    check_network
 
     # 启动服务器
     start_bridge_server

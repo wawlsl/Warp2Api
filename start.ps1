@@ -134,6 +134,22 @@ function Test-Dependencies {
     }
 }
 
+# 检查网络连通性
+function Test-NetworkConnectivity {
+    Write-LogInfo "检查网络连通性..."
+
+    try {
+        $response = Invoke-WebRequest -Uri "https://app.warp.dev" -TimeoutSec 10 -ErrorAction Stop
+        Write-LogSuccess "网络连通性检查通过"
+        Write-Host "✅ 运行时请保证 https://app.warp.dev 网络联通性"
+    }
+    catch {
+        Write-LogWarning "网络连通性检查失败，请确保可以访问 https://app.warp.dev"
+        Write-Host "⚠️ 运行时请保证 https://app.warp.dev 网络联通性"
+        Write-Host "   如果网络连接失败，服务可能无法正常工作"
+    }
+}
+
 # 检查端口是否被占用
 function Test-PortAvailable {
     param([int]$Port)
@@ -250,7 +266,7 @@ function Show-Status {
     Write-Host "📍 API文档: http://localhost:8010/docs"
     Write-Host "🔗 Roocode / KilloCode baseUrl: http://127.0.0.1:8010/v1"
     Write-Host ""
-    Write-Host "🔧 支持的模型:"
+    Write-Host "🔧 支持的模型:http://127.0.0.1:8010/v1/models"
     Write-Host "   • claude-4-sonnet"
     Write-Host "   • claude-4-opus"
     Write-Host "   • claude-4.1-opus"
@@ -317,6 +333,7 @@ function Main {
     # 检查环境
     Test-PythonVersion
     Test-Dependencies
+    Test-NetworkConnectivity
 
     # 启动服务器
     $bridgeStarted = Start-BridgeServer

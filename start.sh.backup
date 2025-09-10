@@ -142,7 +142,7 @@ show_status() {
     echo "📍 OpenAI兼容API服务器: http://localhost:8010"
     echo "📍 API文档: http://localhost:8010/docs"
     echo
-    echo "🔧 支持的模型:"
+    echo "🔧 支持的模型:http://127.0.0.1:8010/v1/models"
     echo "   • claude-4-sonnet"
     echo "   • claude-4-opus"
     echo "   • claude-4.1-opus"
