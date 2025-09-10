@@ -50,6 +50,28 @@
 
 ### 快速开始
 
+#### 方法一：一键启动脚本（推荐）
+
+```bash
+# 启动所有服务器
+./start.sh
+
+# 停止所有服务器
+./stop.sh
+
+# 查看服务器状态
+./stop.sh status
+```
+
+启动脚本会自动：
+- ✅ 检查Python环境和依赖
+- ✅ 按正确顺序启动两个服务器
+- ✅ 验证服务器健康状态
+- ✅ 显示关键配置信息
+- ✅ 实时监控服务器日志
+
+#### 方法二：手动启动
+
 1. **启动 Protobuf 桥接服务器:**
    ```bash
    python server.py
@@ -62,10 +84,33 @@
    ```
    默认地址: `http://localhost:8010`
 
+### 支持的模型
+
+Warp2Api 支持以下 AI 模型：
+
+#### Anthropic Claude 系列
+- `claude-4-sonnet` - Claude 4 Sonnet 模型
+- `claude-4-opus` - Claude 4 Opus 模型
+- `claude-4.1-opus` - Claude 4.1 Opus 模型
+
+#### Google Gemini 系列
+- `gemini-2.5-pro` - Gemini 2.5 Pro 模型
+
+#### OpenAI GPT 系列
+- `gpt-4.1` - GPT-4.1 模型
+- `gpt-4o` - GPT-4o 模型
+- `gpt-5` - GPT-5 基础模型
+- `gpt-5 (high reasoning)` - GPT-5 高推理模式
+
+#### OpenAI o系列
+- `o3` - o3 模型
+- `o4-mini` - o4-mini 模型
+
 ### 使用 API
 
 两个服务器都运行后，您可以使用任何 OpenAI 兼容的客户端:
 
+#### Python 示例
 ```python
 import openai
 
@@ -75,7 +120,7 @@ client = openai.OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="claude-3-sonnet",  # 模型名称会被传递
+    model="claude-4-sonnet",  # 选择支持的模型
     messages=[
         {"role": "user", "content": "你好，你好吗？"}
     ],
@@ -86,6 +131,66 @@ for chunk in response:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="")
 ```
+
+#### cURL 示例
+```bash
+# 基本请求
+curl -X POST http://localhost:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-4-sonnet",
+    "messages": [
+      {"role": "user", "content": "你好，请介绍一下你自己"}
+    ],
+    "stream": true
+  }'
+
+# 指定其他模型
+curl -X POST http://localhost:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5",
+    "messages": [
+      {"role": "user", "content": "解释量子计算的基本原理"}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 1000
+  }'
+```
+
+#### JavaScript/Node.js 示例
+```javascript
+const OpenAI = require('openai');
+
+const client = new OpenAI({
+  baseURL: 'http://localhost:8010/v1',
+  apiKey: 'dummy'
+});
+
+async function main() {
+  const completion = await client.chat.completions.create({
+    model: 'gemini-2.5-pro',
+    messages: [
+      { role: 'user', content: '写一个简单的Hello World程序' }
+    ],
+    stream: true
+  });
+
+  for await (const chunk of completion) {
+    process.stdout.write(chunk.choices[0]?.delta?.content || '');
+  }
+}
+
+main();
+```
+
+### 模型选择建议
+
+- **编程任务**: 推荐使用 `claude-4-sonnet` 或 `gpt-5`
+- **创意写作**: 推荐使用 `claude-4-opus` 或 `gpt-4o`
+- **代码审查**: 推荐使用 `claude-4.1-opus`
+- **推理任务**: 推荐使用 `gpt-5 (high reasoning)` 或 `o3`
+- **轻量任务**: 推荐使用 `o4-mini` 或 `gpt-4o`
 
 ### 可用端点
 

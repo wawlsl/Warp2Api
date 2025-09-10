@@ -10,5 +10,7 @@ wheels/
 .venv
 .env
 
+# Log files
 logs/
+*.log
 packets_docs/
