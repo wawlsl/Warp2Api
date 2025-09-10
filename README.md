@@ -70,6 +70,14 @@
 - ✅ 显示关键配置信息
 - ✅ 实时监控服务器日志
 
+### 📸 运行演示
+
+#### 项目启动界面
+![项目启动界面](docs/screenshots/运行截图.png)
+
+#### 使用示例
+![使用示例](docs/screenshots/使用截图.png)
+
 #### 方法二：手动启动
 
 1. **启动 Protobuf 桥接服务器:**
@@ -288,10 +296,16 @@ Warp2Api/
 │   └── warp/                # Warp 特定代码
 ├── server.py                # Protobuf 桥接服务器
 ├── openai_compat.py         # OpenAI API 服务器
+├── docs/                    # 项目文档
+│   └── screenshots/         # 项目截图
 └── pyproject.toml           # 项目配置
 ```
 
-### 依赖项
+### 截图演示
+
+项目运行截图和界面演示请查看 [`docs/screenshots/`](docs/screenshots/) 文件夹。
+
+## 📋 文档
 
 主要依赖项包括:
 - **FastAPI**: 现代、快速的 Web 框架
