@@ -40,21 +40,21 @@ stop_servers() {
 
     # 停止端口相关的进程
     log_info "清理端口进程..."
-    if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        log_info "终止端口8000上的进程..."
-        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    if lsof -Pi :28888 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        log_info "终止端口28888 (Protobuf桥接服务器)上的进程..."
+        lsof -ti:28888 | xargs kill -9 2>/dev/null || true
     fi
 
-    if lsof -Pi :8010 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        log_info "终止端口8010上的进程..."
-        lsof -ti:8010 | xargs kill -9 2>/dev/null || true
+    if lsof -Pi :28889 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        log_info "终止端口28889 (OpenAI兼容API服务器)上的进程..."
+        lsof -ti:28889 | xargs kill -9 2>/dev/null || true
     fi
 
     # 等待进程完全停止
     sleep 2
 
     # 验证停止状态
-    if ! lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1 && ! lsof -Pi :8010 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    if ! lsof -Pi :28888 -sTCP:LISTEN -t >/dev/null 2>&1 && ! lsof -Pi :28889 -sTCP:LISTEN -t >/dev/null 2>&1; then
         log_success "所有服务器已成功停止"
     else
         log_warning "某些进程可能仍在运行，请手动检查"
@@ -76,18 +76,18 @@ show_status() {
     echo "📊 当前服务器状态"
     echo "=========================================="
 
-    # 检查端口8000
-    if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Protobuf桥接服务器 (端口8000): 运行中${NC}"
+    # 检查端口28888
+    if lsof -Pi :28888 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Protobuf桥接服务器 (端口28888): 运行中${NC}"
     else
-        echo -e "${RED}❌ Protobuf桥接服务器 (端口8000): 已停止${NC}"
+        echo -e "${RED}❌ Protobuf桥接服务器 (端口28888): 已停止${NC}"
     fi
 
-    # 检查端口8010
-    if lsof -Pi :8010 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ OpenAI兼容API服务器 (端口8010): 运行中${NC}"
+    # 检查端口28889
+    if lsof -Pi :28889 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ OpenAI兼容API服务器 (端口28889): 运行中${NC}"
     else
-        echo -e "${RED}❌ OpenAI兼容API服务器 (端口8010): 已停止${NC}"
+        echo -e "${RED}❌ OpenAI兼容API服务器 (端口28889): 已停止${NC}"
     fi
 
     echo "=========================================="

@@ -43,19 +43,19 @@ BRIDGE_OK=false
 OPENAI_OK=false
 
 # 检查Protobuf桥接服务器
-if curl -s http://localhost:8000/healthz >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ Protobuf桥接服务器 (8000) 运行正常${NC}"
+if curl -s http://localhost:28888/healthz >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ Protobuf桥接服务器 (28888) 运行正常${NC}"
     BRIDGE_OK=true
 else
-    echo -e "${RED}❌ Protobuf桥接服务器 (8000) 未响应${NC}"
+    echo -e "${RED}❌ Protobuf桥接服务器 (28888) 未响应${NC}"
 fi
 
 # 检查OpenAI兼容API服务器
-if curl -s http://localhost:8010/healthz >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ OpenAI兼容API服务器 (8010) 运行正常${NC}"
+if curl -s http://localhost:28889/healthz >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ OpenAI兼容API服务器 (28889) 运行正常${NC}"
     OPENAI_OK=true
 else
-    echo -e "${RED}❌ OpenAI兼容API服务器 (8010) 未响应${NC}"
+    echo -e "${RED}❌ OpenAI兼容API服务器 (28889) 未响应${NC}"
 fi
 
 if [ "$BRIDGE_OK" = true ] && [ "$OPENAI_OK" = true ]; then
@@ -63,7 +63,7 @@ if [ "$BRIDGE_OK" = true ] && [ "$OPENAI_OK" = true ]; then
 
     # 测试API调用
     echo -e "\n${YELLOW}测试API调用...${NC}"
-    RESPONSE=$(curl -s -X POST http://localhost:8010/v1/chat/completions \
+    RESPONSE=$(curl -s -X POST http://localhost:28889/v1/chat/completions \
       -H "Content-Type: application/json" \
       -d '{
         "model": "claude-4-sonnet",

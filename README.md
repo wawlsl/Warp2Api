@@ -16,8 +16,9 @@
 
 ## 📋 系统要求
 
-- Python 3.13+
-- Warp AI 服务访问权限（需要 JWT 令牌）
+- Python 3.9+ (推荐 3.13+)
+- Warp AI 服务访问权限（JWT 令牌会自动获取）
+- 支持 Linux、macOS 和 Windows
 
 ## 🛠️ 安装
 
@@ -37,14 +38,27 @@
    pip install -e .
    ```
 
-3. **配置匿名JWT TOKEN:**
-   这一步可以什么都不做，程序会自行请求匿名JWT TOKEN
+3. **配置环境变量:**
+    程序会自动获取匿名JWT TOKEN，您无需手动配置。
 
-   当然你也可以创建一个包含您的 Warp 凭证的 `.env` 文件，用自己的订阅额度，不过这并不推荐:
-   ```env
-   WARP_JWT=your_jwt_token_here
-   WARP_REFRESH_TOKEN=your_refresh_token_here
-   ```
+    如需自定义配置，可以创建 `.env` 文件:
+    ```env
+    # Warp2Api 配置
+    # 设置为 true 启用详细日志输出，默认 false（静默模式）
+    W2A_VERBOSE=false
+
+    # Bridge服务器URL配置 - 修复端口配置问题
+    WARP_BRIDGE_URL=http://127.0.0.1:28888
+
+    # 禁用代理以避免连接问题
+    HTTP_PROXY=
+    HTTPS_PROXY=
+    NO_PROXY=127.0.0.1,localhost
+
+    # 可选：使用自己的Warp凭证（不推荐，会消耗订阅额度）
+    WARP_JWT=your_jwt_token_here
+    WARP_REFRESH_TOKEN=your_refresh_token_here
+    ```
 
 ## 🎯 使用方法
 
@@ -100,13 +114,13 @@ REM 或使用 PowerShell 脚本
    ```bash
    python server.py
    ```
-   默认地址: `http://localhost:8000`
+   默认地址: `http://localhost:28888`
 
 2. **启动 OpenAI 兼容 API 服务器:**
    ```bash
    python openai_compat.py
    ```
-   默认地址: `http://localhost:8010`
+   默认地址: `http://localhost:28889`
 
 ### 支持的模型
 
@@ -139,7 +153,7 @@ Warp2Api 支持以下 AI 模型：
 import openai
 
 client = openai.OpenAI(
-    base_url="http://localhost:8010/v1",
+    base_url="http://localhost:28889/v1",
     api_key="dummy"  # 不是必需的，但某些客户端需要
 )
 
@@ -159,7 +173,7 @@ for chunk in response:
 #### cURL 示例
 ```bash
 # 基本请求
-curl -X POST http://localhost:8010/v1/chat/completions \
+curl -X POST http://localhost:28889/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "claude-4-sonnet",
@@ -170,7 +184,7 @@ curl -X POST http://localhost:8010/v1/chat/completions \
   }'
 
 # 指定其他模型
-curl -X POST http://localhost:8010/v1/chat/completions \
+curl -X POST http://localhost:28889/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "gpt-5",
@@ -187,7 +201,7 @@ curl -X POST http://localhost:8010/v1/chat/completions \
 const OpenAI = require('openai');
 
 const client = new OpenAI({
-  baseURL: 'http://localhost:8010/v1',
+  baseURL: 'http://localhost:28889/v1',
   apiKey: 'dummy'
 });
 
@@ -218,13 +232,13 @@ main();
 
 ### 可用端点
 
-#### Protobuf 桥接服务器 (`http://localhost:8000`)
+#### Protobuf 桥接服务器 (`http://localhost:28888`)
 - `GET /healthz` - 健康检查
 - `POST /encode` - 将 JSON 编码为 protobuf
 - `POST /decode` - 将 protobuf 解码为 JSON
 - `WebSocket /ws` - 实时监控
 
-#### OpenAI API 服务器 (`http://localhost:8010`)
+#### OpenAI API 服务器 (`http://localhost:28889`)
 - `GET /` - 服务状态
 - `GET /healthz` - 健康检查
 - `POST /v1/chat/completions` - OpenAI Chat Completions 兼容端点
@@ -235,14 +249,14 @@ main();
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │    客户端应用     │───▶│  OpenAI API     │───▶│   Protobuf      │
 │  (OpenAI SDK)   │    │     服务器      │    │    桥接服务器    │
-└─────────────────┘    │  (端口 8010)    │    │  (端口 8000)    │
-                       └─────────────────┘    └─────────────────┘
-                                                       │
-                                                       ▼
-                                              ┌─────────────────┐
-                                              │    Warp AI      │
-                                              │      服务       │
-                                              └─────────────────┘
+└─────────────────┘    │  (端口 28889)   │    │  (端口 28888)   │
+                        └─────────────────┘    └─────────────────┘
+                                                        │
+                                                        ▼
+                                               ┌─────────────────┐
+                                               │    Warp AI      │
+                                               │      服务       │
+                                               └─────────────────┘
 ```
 
 ### 核心组件
@@ -264,11 +278,15 @@ main();
 
 | 变量 | 描述 | 默认值 |
 |------|------|--------|
-| `WARP_JWT` | Warp 认证 JWT 令牌 | 必需 |
-| `WARP_REFRESH_TOKEN` | JWT 刷新令牌 | 必需 |
+| `WARP_JWT` | Warp 认证 JWT 令牌 | 自动获取 |
+| `WARP_REFRESH_TOKEN` | JWT 刷新令牌 | 可选 |
+| `WARP_BRIDGE_URL` | Protobuf 桥接服务器 URL | `http://127.0.0.1:28888` |
+| `HTTP_PROXY` | HTTP 代理设置 | 空（禁用代理） |
+| `HTTPS_PROXY` | HTTPS 代理设置 | 空（禁用代理） |
+| `NO_PROXY` | 不使用代理的主机 | `127.0.0.1,localhost` |
 | `HOST` | 服务器主机地址 | `127.0.0.1` |
-| `PORT` | OpenAI API 服务器端口 | `8010` |
-| `BRIDGE_BASE_URL` | Protobuf 桥接服务器 URL | `http://localhost:8000` |
+| `PORT` | OpenAI API 服务器端口 | `28889` |
+| `W2A_VERBOSE` | 启用详细日志输出 | `false` |
 
 ### 项目脚本
 
@@ -318,6 +336,7 @@ Warp2Api/
 ├── stop.bat                 # Windows 批处理停止脚本
 ├── start.ps1                # Windows PowerShell 启动脚本
 ├── docs/                    # 项目文档
+│   ├── TROUBLESHOOTING.md   # 故障排除指南
 │   └── screenshots/         # 项目截图
 └── pyproject.toml           # 项目配置
 ```
@@ -338,22 +357,35 @@ Warp2Api/
 
 ## 🐛 故障排除
 
+详细的故障排除指南请参考 [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
+
 ### 常见问题
 
-1. **JWT 令牌过期**
-   - 服务会自动刷新令牌
-   - 检查日志中的认证错误
-   - 验证 `WARP_REFRESH_TOKEN` 是否有效
+1. **"Server disconnected without sending a response" 错误**
+    - 检查 `.env` 文件中的 `WARP_BRIDGE_URL` 配置是否正确
+    - 确保代理设置已禁用：`HTTP_PROXY=`, `HTTPS_PROXY=`, `NO_PROXY=127.0.0.1,localhost`
+    - 验证桥接服务器是否在端口 28888 上运行
+    - 检查防火墙是否阻止了本地连接
 
-2. **桥接服务器未就绪**
-   - 确保首先运行 protobuf 桥接服务器
-   - 检查 `BRIDGE_BASE_URL` 配置
-   - 验证端口可用性
+2. **JWT 令牌过期**
+    - 服务会自动刷新令牌
+    - 检查日志中的认证错误
+    - 验证 `WARP_REFRESH_TOKEN` 是否有效
 
-3. **连接错误**
-   - 检查到 Warp 服务的网络连接
-   - 验证防火墙设置
-   - 如适用，检查代理配置
+3. **桥接服务器未就绪**
+    - 确保首先运行 protobuf 桥接服务器
+    - 检查 `WARP_BRIDGE_URL` 配置（应为 `http://127.0.0.1:28888`）
+    - 验证端口可用性
+
+4. **代理连接错误**
+    - 如果遇到 `ProxyError` 或端口 1082 错误
+    - 在 `.env` 文件中设置：`HTTP_PROXY=`, `HTTPS_PROXY=`, `NO_PROXY=127.0.0.1,localhost`
+    - 或者在系统环境中禁用代理
+
+5. **连接错误**
+    - 检查到 Warp 服务的网络连接
+    - 验证防火墙设置
+    - 确保本地端口 28888 和 28889 未被其他应用占用
 
 ### 日志记录
 

@@ -36,20 +36,20 @@ echo ============================================
 echo 📊 当前服务器状态
 echo ============================================
 
-REM 检查端口8000
-netstat -an | find "8000" >nul 2>&1
+REM 检查端口28888
+netstat -an | find "28888" >nul 2>&1
 if %errorlevel%==0 (
-    echo ✅ Protobuf桥接服务器 (端口8000): 运行中
+    echo ✅ Protobuf桥接服务器 (端口28888): 运行中
 ) else (
-    echo ❌ Protobuf桥接服务器 (端口8000): 已停止
+    echo ❌ Protobuf桥接服务器 (端口28888): 已停止
 )
 
-REM 检查端口8010
-netstat -an | find "8010" >nul 2>&1
+REM 检查端口28889
+netstat -an | find "28889" >nul 2>&1
 if %errorlevel%==0 (
-    echo ✅ OpenAI兼容API服务器 (端口8010): 运行中
+    echo ✅ OpenAI兼容API服务器 (端口28889): 运行中
 ) else (
-    echo ❌ OpenAI兼容API服务器 (端口8010): 已停止
+    echo ❌ OpenAI兼容API服务器 (端口28889): 已停止
 )
 
 echo ============================================
@@ -65,10 +65,10 @@ taskkill /F /IM python.exe >nul 2>&1
 
 REM 停止端口相关的进程
 call :log_info "清理端口进程..."
-for /f "tokens=5" %%a in ('netstat -ano ^| find "8000"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| find "28888"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
-for /f "tokens=5" %%a in ('netstat -ano ^| find "8010"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| find "28889"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
 
@@ -76,12 +76,12 @@ REM 等待进程完全停止
 timeout /t 2 >nul
 
 REM 验证停止状态
-netstat -an | find "8000" >nul 2>&1
-set PORT_8000_RUNNING=%errorlevel%
-netstat -an | find "8010" >nul 2>&1
-set PORT_8010_RUNNING=%errorlevel%
+netstat -an | find "28888" >nul 2>&1
+set PORT_28888_RUNNING=%errorlevel%
+netstat -an | find "28889" >nul 2>&1
+set PORT_28889_RUNNING=%errorlevel%
 
-if %PORT_8000_RUNNING%==1 if %PORT_8010_RUNNING%==1 (
+if %PORT_28888_RUNNING%==1 if %PORT_28889_RUNNING%==1 (
     call :log_success "所有服务器已成功停止"
 ) else (
     call :log_warning "某些进程可能仍在运行，请手动检查"
