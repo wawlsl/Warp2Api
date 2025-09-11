@@ -515,7 +515,7 @@ def main():
     
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="Warp Protobuf编解码服务器")
-    parser.add_argument("--port", type=int, default=8000, help="服务器监听端口 (默认: 8000)")
+    parser.add_argument("--port", type=int, default=28888, help="服务器监听端口 (默认: 28888)")
     args = parser.parse_args()
     
     # 创建应用

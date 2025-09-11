@@ -280,13 +280,13 @@ function Show-Status {
     Write-Host "============================================"
     Write-Host "🚀 Warp2Api 服务器状态"
     Write-Host "============================================"
-    Write-Host "📍 Protobuf桥接服务器: http://localhost:8000"
-    Write-Host "📍 OpenAI兼容API服务器: http://localhost:8010"
-    Write-Host "📍 API文档: http://localhost:8010/docs"
-    Write-Host "🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:8010/v1"
+    Write-Host "📍 Protobuf桥接服务器: http://localhost:28888"
+    Write-Host "📍 OpenAI兼容API服务器: http://localhost:28889"
+    Write-Host "📍 API文档: http://localhost:28889/docs"
+    Write-Host "🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:28889/v1"
     Write-Host "⬇️ KilloCode 下载地址：https://app.kilocode.ai/users/sign_up?referral-code=df16bc60-be35-480f-be2c-b1c6685b6089"
     Write-Host ""
-    Write-Host "🔧 支持的模型:http://127.0.0.1:8010/v1/models"
+    Write-Host "🔧 支持的模型:http://127.0.0.1:28889/v1/models"
     Write-Host "   • claude-4-sonnet"
     Write-Host "   • claude-4-opus"
     Write-Host "   • claude-4.1-opus"
@@ -298,26 +298,17 @@ function Show-Status {
     Write-Host "   • o3"
     Write-Host "   • o4-mini"
     Write-Host ""
-    Write-Host "🔑 当前API接口Token:"
+    Write-Host "🔑 当前API接口Token:" -NoNewline
+    Write-Host " "
     if (Test-Path ".env") {
         $envContent = Get-Content ".env"
-        $warpJwt = $null
+        $warpApiToken = $null
         foreach ($line in $envContent) {
-            if ($line -match '^WARP_JWT=(.*)$') {
-                $warpJwt = $matches[1].Trim('"')
-            }
-        }
-        if ($warpJwt) {
-            Write-Host "   $warpJwt"
-        } else {
-            Write-Host "   未设置"
-        }
-    } else {
-        Write-Host "   .env 文件不存在"
-    }
+            if ($line -match '^API_TOKEN=(.*)
     Write-Host ""
     Write-Host "📝 测试命令:"
-    Write-Host "Invoke-WebRequest -Uri 'http://localhost:8010/v1/chat/completions' -Method POST -ContentType 'application/json' -Body '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
+    $warpApiToken = if ($warpApiToken) { $warpApiToken } else { "your_token_here" }
+    Write-Host "Invoke-WebRequest -Uri 'http://localhost:28889/v1/chat/completions' -Method POST -ContentType 'application/json' -Headers @{\"Authorization\" = \"Bearer $warpApiToken\"} -Body '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
     Write-Host ""
     Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
     Write-Host "============================================"
@@ -346,8 +337,8 @@ function Stop-Servers {
     # 检查并清理端口进程，只终止我们的Python进程
     Write-LogInfo "检查并清理端口进程..."
 
-    # 检查端口8000
-    $connections = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue
+    # 检查端口28888
+    $connections = Get-NetTCPConnection -LocalPort 28888 -ErrorAction SilentlyContinue
     foreach ($conn in $connections) {
         try {
             $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
@@ -364,7 +355,7 @@ function Stop-Servers {
                         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
                     }
                 } else {
-                    Write-LogWarning "端口8000被其他进程占用 (PID: $($process.Id))，跳过终止"
+                    Write-LogWarning "端口28888被其他进程占用 (PID: $($process.Id))，跳过终止"
                 }
             }
         }
@@ -373,8 +364,8 @@ function Stop-Servers {
         }
     }
 
-    # 检查端口8010
-    $connections = Get-NetTCPConnection -LocalPort 8010 -ErrorAction SilentlyContinue
+    # 检查端口28889
+    $connections = Get-NetTCPConnection -LocalPort 28889 -ErrorAction SilentlyContinue
     foreach ($conn in $connections) {
         try {
             $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
@@ -391,7 +382,164 @@ function Stop-Servers {
                         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
                     }
                 } else {
-                    Write-LogWarning "端口8010被其他进程占用 (PID: $($process.Id))，跳过终止"
+                    Write-LogWarning "端口28889被其他进程占用 (PID: $($process.Id))，跳过终止"
+                }
+            }
+        }
+        catch {
+            # 忽略错误
+        }
+    }
+
+    Write-LogSuccess "所有服务器已停止"
+}
+
+# 主函数
+function Main {
+    if ($Stop) {
+        Stop-Servers
+        return
+    }
+
+    Write-Host "============================================"
+    Write-Host "🚀 Warp2Api PowerShell 快速启动脚本"
+    Write-Host "============================================"
+
+    # 检查环境
+    Test-PythonVersion
+    Test-Dependencies
+    Test-NetworkConnectivity
+
+    # 启动服务器
+    $bridgeStarted = Start-BridgeServer
+    if (-not $bridgeStarted) {
+        Write-LogError "Protobuf桥接服务器启动失败，退出"
+        exit 1
+    }
+
+    $openaiStarted = Start-OpenAIServer
+    if (-not $openaiStarted) {
+        Write-LogError "OpenAI兼容API服务器启动失败，退出"
+        exit 1
+    }
+
+    # 显示状态信息
+    Show-Status
+
+    if ($env:W2A_VERBOSE -eq "true") {
+        Write-LogSuccess "Warp2Api启动完成！"
+        Write-LogInfo "服务器正在后台运行，按 Ctrl+C 退出"
+
+        Write-Host ""
+        Write-Host "📋 实时日志监控 (按 Ctrl+C 退出):"
+        Write-Host "----------------------------------------"
+
+        # PowerShell 中可以同时监控多个日志文件
+        try {
+            Get-Content "bridge_server.log", "openai_server.log" -Wait -ErrorAction Stop
+        }
+        catch {
+            Write-Host "日志监控已停止"
+        }
+    }
+    else {
+        Write-Host "✅ Warp2Api启动完成！服务器正在后台运行。"
+        Write-Host "💡 如需查看详细日志，请使用 -Verbose 参数: .\start.ps1 -Verbose"
+        Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
+    }
+}
+
+# 执行主函数
+Main) {
+                $warpApiToken = $matches[1].Trim('"')
+            }
+        }
+        if ($warpApiToken) {
+            Write-Host $warpApiToken
+        } else {
+            Write-Host "未设置"
+        }
+    } else {
+        Write-Host ".env 文件不存在"
+    }
+    Write-Host ""
+    Write-Host "📝 测试命令:"
+    $warpApiToken = if ($warpApiToken) { $warpApiToken } else { "your_token_here" }
+    Write-Host "Invoke-WebRequest -Uri 'http://localhost:28889/v1/chat/completions' -Method POST -ContentType 'application/json' -Headers @{\"Authorization\" = \"Bearer $warpApiToken\"} -Body '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
+    Write-Host ""
+    Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
+    Write-Host "============================================"
+}
+
+# 停止服务器
+function Stop-Servers {
+    Write-LogInfo "停止所有服务器..."
+
+    # 首先尝试通过进程名优雅终止
+    Write-LogInfo "尝试通过进程名优雅终止服务器..."
+    Get-Process | Where-Object { $_.ProcessName -eq "python" -or $_.ProcessName -eq "python3" } | ForEach-Object {
+        try {
+            $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine
+            if ($commandLine -match "server\.py|openai_compat\.py") {
+                Write-LogInfo "优雅终止服务器进程 (PID: $($_.Id))"
+                Stop-Process -Id $_.Id -ErrorAction SilentlyContinue
+            }
+        }
+        catch {
+            # 忽略无法获取命令行的进程
+        }
+    }
+    Start-Sleep -Seconds 2
+
+    # 检查并清理端口进程，只终止我们的Python进程
+    Write-LogInfo "检查并清理端口进程..."
+
+    # 检查端口28888
+    $connections = Get-NetTCPConnection -LocalPort 28888 -ErrorAction SilentlyContinue
+    foreach ($conn in $connections) {
+        try {
+            $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+            if ($process) {
+                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($process.Id)").CommandLine
+                if ($commandLine -match "server\.py|openai_compat\.py") {
+                    Write-LogWarning "终止我们的服务器进程 (PID: $($process.Id))"
+                    # 首先尝试优雅终止
+                    Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+                    # 如果仍在运行，再强制终止
+                    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+                        Write-LogWarning "优雅终止失败，强制终止进程 (PID: $($process.Id))"
+                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    }
+                } else {
+                    Write-LogWarning "端口28888被其他进程占用 (PID: $($process.Id))，跳过终止"
+                }
+            }
+        }
+        catch {
+            # 忽略错误
+        }
+    }
+
+    # 检查端口28889
+    $connections = Get-NetTCPConnection -LocalPort 28889 -ErrorAction SilentlyContinue
+    foreach ($conn in $connections) {
+        try {
+            $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+            if ($process) {
+                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($process.Id)").CommandLine
+                if ($commandLine -match "server\.py|openai_compat\.py") {
+                    Write-LogWarning "终止我们的服务器进程 (PID: $($process.Id))"
+                    # 首先尝试优雅终止
+                    Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+                    # 如果仍在运行，再强制终止
+                    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+                        Write-LogWarning "优雅终止失败，强制终止进程 (PID: $($process.Id))"
+                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    }
+                } else {
+                    Write-LogWarning "端口28889被其他进程占用 (PID: $($process.Id))，跳过终止"
                 }
             }
         }

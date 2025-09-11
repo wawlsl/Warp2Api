@@ -146,6 +146,13 @@ Warp2Api 支持以下 AI 模型：
 
 ### 使用 API
 
+#### 🔓 认证说明
+**重要：Warp2Api 的 OpenAI 兼容接口不需要 API key 验证！**
+
+- 服务器会自动处理 Warp 服务的认证
+- 客户端可以发送任意的 `api_key` 值（或完全省略）
+- 所有请求都会使用系统自动获取的匿名 JWT token
+
 两个服务器都运行后，您可以使用任何 OpenAI 兼容的客户端:
 
 #### Python 示例
@@ -154,7 +161,7 @@ import openai
 
 client = openai.OpenAI(
     base_url="http://localhost:28889/v1",
-    api_key="dummy"  # 不是必需的，但某些客户端需要
+    api_key="dummy"  # 可选：某些客户端需要，但服务器不强制验证
 )
 
 response = client.chat.completions.create(
@@ -202,7 +209,7 @@ const OpenAI = require('openai');
 
 const client = new OpenAI({
   baseURL: 'http://localhost:28889/v1',
-  apiKey: 'dummy'
+  apiKey: 'dummy'  // 可选：某些客户端需要，但服务器不强制验证
 });
 
 async function main() {

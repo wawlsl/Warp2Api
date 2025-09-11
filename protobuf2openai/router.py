@@ -7,7 +7,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from .logging import logger
@@ -20,6 +20,7 @@ from .state import STATE
 from .config import BRIDGE_BASE_URL
 from .bridge import initialize_once
 from .sse_transform import stream_openai_sse
+from .auth import authenticate_request
 
 
 router = APIRouter()
@@ -54,7 +55,11 @@ def list_models():
 
 
 @router.post("/v1/chat/completions")
-async def chat_completions(req: ChatCompletionsRequest):
+async def chat_completions(req: ChatCompletionsRequest, request: Request = None):
+    # 认证检查
+    if request:
+        await authenticate_request(request)
+
     try:
         initialize_once()
     except Exception as e:

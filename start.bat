@@ -230,26 +230,29 @@ echo    • gpt-5 (high reasoning)
 echo    • o3
 echo    • o4-mini
 echo.
-echo 🔑 当前API接口Token:
+setlocal enabledelayedexpansion
+    <nul set /p="🔑 当前API接口Token: "
 if exist ".env" (
     for /f "tokens=1,* delims==" %%a in (.env) do (
-        if "%%a"=="WARP_JWT" (
-            set "WARP_JWT=%%b"
-            set "WARP_JWT=!WARP_JWT:"=!"
+        if "%%a"=="API_TOKEN" (
+            set "API_TOKEN=%%b"
+            set "API_TOKEN=!API_TOKEN:"=!"
         )
     )
-    if defined WARP_JWT (
-        echo    !WARP_JWT!
+    if defined API_TOKEN (
+        echo !API_TOKEN!
     ) else (
-        echo    未设置
+        echo 未设置
     )
 ) else (
-    echo    .env 文件不存在
+    echo .env 文件不存在
 )
+    endlocal
 echo.
 echo 📝 测试命令:
 echo curl -X POST http://localhost:28889/v1/chat/completions \
 echo   -H "Content-Type: application/json" \
+echo   -H "Authorization: Bearer !API_TOKEN!" \
 echo   -d "{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}"
 echo.
 echo 🛑 要停止服务器，请运行: stop.bat

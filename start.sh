@@ -215,21 +215,22 @@ show_status() {
     echo "   • o3"
     echo "   • o4-mini"
     echo
-    echo "🔑 当前API接口Token:"
+    echo -n "🔑 当前API接口Token: "
     if [ -f ".env" ]; then
-        WARP_JWT=$(grep "^WARP_JWT=" .env | cut -d'=' -f2- | sed 's/^"//' | sed 's/"$//')
-        if [ -n "$WARP_JWT" ]; then
-            echo "   $WARP_JWT"
+        API_TOKEN=$(grep "^API_TOKEN=" .env | cut -d'=' -f2- | sed 's/^"//' | sed 's/"$//')
+        if [ -n "$API_TOKEN" ]; then
+            echo "$API_TOKEN"
         else
-            echo "   未设置"
+            echo "未设置"
         fi
     else
-        echo "   .env 文件不存在"
+        echo ".env 文件不存在"
     fi
     echo
     echo "📝 测试命令:"
     echo "curl -X POST http://localhost:28889/v1/chat/completions \\"
     echo "  -H \"Content-Type: application/json\" \\"
+    echo "  -H \"Authorization: Bearer $API_TOKEN\" \\"
     echo "  -d '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
     echo
     echo "🛑 要停止服务器，请运行: ./stop.sh"
