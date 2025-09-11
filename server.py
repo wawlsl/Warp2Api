@@ -511,6 +511,13 @@ async def startup_tasks():
 
 def main():
     """主函数"""
+    import argparse
+    
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="Warp Protobuf编解码服务器")
+    parser.add_argument("--port", type=int, default=8000, help="服务器监听端口 (默认: 8000)")
+    args = parser.parse_args()
+    
     # 创建应用
     app = create_app()
     
@@ -521,10 +528,11 @@ def main():
     
     # 启动服务器
     try:
+        logger.info(f"启动服务器在端口 {args.port}")
         uvicorn.run(
             app,
             host="0.0.0.0",
-            port=8000,
+            port=args.port,
             log_level="info",
             access_log=True
         )

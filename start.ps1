@@ -190,16 +190,19 @@ function Stop-PortProcess {
 function Start-BridgeServer {
     Write-LogInfo "启动Protobuf桥接服务器..."
 
-    # 检查端口8000是否被占用
-    if (-not (Test-PortAvailable 8000)) {
-        Write-LogWarning "端口8000已被占用，尝试终止现有进程..."
-        Stop-PortProcess 8000
+    # 使用小众端口28888避免与其他应用冲突
+    $bridgePort = 28888
+    
+    # 检查端口是否被占用
+    if (-not (Test-PortAvailable $bridgePort)) {
+        Write-LogWarning "端口$bridgePort已被占用，尝试终止现有进程..."
+        Stop-PortProcess $bridgePort
         Start-Sleep -Seconds 2
     }
 
     # 启动服务器（后台运行）
     try {
-        $process = Start-Process -FilePath "python" -ArgumentList "server.py" -NoNewWindow -RedirectStandardOutput "bridge_server.log" -RedirectStandardError "bridge_server.log" -PassThru
+        $process = Start-Process -FilePath "python" -ArgumentList "server.py", "--port", $bridgePort -NoNewWindow -RedirectStandardOutput "bridge_server.log" -RedirectStandardError "bridge_server.log" -PassThru
         $bridgePid = $process.Id
 
         # 等待服务器启动
@@ -208,9 +211,9 @@ function Start-BridgeServer {
 
         # 检查服务器是否启动成功
         try {
-            $response = Invoke-WebRequest -Uri "http://localhost:8000/healthz" -TimeoutSec 5 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri "http://localhost:$bridgePort/healthz" -TimeoutSec 5 -ErrorAction Stop
             Write-LogSuccess "Protobuf桥接服务器启动成功 (PID: $bridgePid)"
-            Write-LogInfo "📍 Protobuf桥接服务器地址: http://localhost:8000"
+            Write-LogInfo "📍 Protobuf桥接服务器地址: http://localhost:$bridgePort"
             return $true
         }
         catch {
@@ -231,16 +234,19 @@ function Start-BridgeServer {
 function Start-OpenAIServer {
     Write-LogInfo "启动OpenAI兼容API服务器..."
 
-    # 检查端口8010是否被占用
-    if (-not (Test-PortAvailable 8010)) {
-        Write-LogWarning "端口8010已被占用，尝试终止现有进程..."
-        Stop-PortProcess 8010
+    # 使用小众端口28889避免与其他应用冲突
+    $openaiPort = 28889
+    
+    # 检查端口是否被占用
+    if (-not (Test-PortAvailable $openaiPort)) {
+        Write-LogWarning "端口$openaiPort已被占用，尝试终止现有进程..."
+        Stop-PortProcess $openaiPort
         Start-Sleep -Seconds 2
     }
 
     # 启动服务器（后台运行）
     try {
-        $process = Start-Process -FilePath "python" -ArgumentList "openai_compat.py" -NoNewWindow -RedirectStandardOutput "openai_server.log" -RedirectStandardError "openai_server.log" -PassThru
+        $process = Start-Process -FilePath "python" -ArgumentList "openai_compat.py", "--port", $openaiPort -NoNewWindow -RedirectStandardOutput "openai_server.log" -RedirectStandardError "openai_server.log" -PassThru
         $openaiPid = $process.Id
 
         # 等待服务器启动
@@ -249,9 +255,9 @@ function Start-OpenAIServer {
 
         # 检查服务器是否启动成功
         try {
-            $response = Invoke-WebRequest -Uri "http://localhost:8010/healthz" -TimeoutSec 5 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri "http://localhost:$openaiPort/healthz" -TimeoutSec 5 -ErrorAction Stop
             Write-LogSuccess "OpenAI兼容API服务器启动成功 (PID: $openaiPid)"
-            Write-LogInfo "📍 OpenAI兼容API服务器地址: http://localhost:8010"
+            Write-LogInfo "📍 OpenAI兼容API服务器地址: http://localhost:$openaiPort"
             return $true
         }
         catch {
@@ -321,14 +327,78 @@ function Show-Status {
 function Stop-Servers {
     Write-LogInfo "停止所有服务器..."
 
-    # 停止Python服务器进程
-    Write-LogInfo "终止Python服务器进程..."
-    Get-Process -Name "python" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    # 首先尝试通过进程名优雅终止
+    Write-LogInfo "尝试通过进程名优雅终止服务器..."
+    Get-Process | Where-Object { $_.ProcessName -eq "python" -or $_.ProcessName -eq "python3" } | ForEach-Object {
+        try {
+            $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine
+            if ($commandLine -match "server\.py|openai_compat\.py") {
+                Write-LogInfo "优雅终止服务器进程 (PID: $($_.Id))"
+                Stop-Process -Id $_.Id -ErrorAction SilentlyContinue
+            }
+        }
+        catch {
+            # 忽略无法获取命令行的进程
+        }
+    }
+    Start-Sleep -Seconds 2
 
-    # 停止端口相关的进程
-    Write-LogInfo "清理端口进程..."
-    Stop-PortProcess 8000
-    Stop-PortProcess 8010
+    # 检查并清理端口进程，只终止我们的Python进程
+    Write-LogInfo "检查并清理端口进程..."
+
+    # 检查端口8000
+    $connections = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue
+    foreach ($conn in $connections) {
+        try {
+            $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+            if ($process) {
+                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($process.Id)").CommandLine
+                if ($commandLine -match "server\.py|openai_compat\.py") {
+                    Write-LogWarning "终止我们的服务器进程 (PID: $($process.Id))"
+                    # 首先尝试优雅终止
+                    Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+                    # 如果仍在运行，再强制终止
+                    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+                        Write-LogWarning "优雅终止失败，强制终止进程 (PID: $($process.Id))"
+                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    }
+                } else {
+                    Write-LogWarning "端口8000被其他进程占用 (PID: $($process.Id))，跳过终止"
+                }
+            }
+        }
+        catch {
+            # 忽略错误
+        }
+    }
+
+    # 检查端口8010
+    $connections = Get-NetTCPConnection -LocalPort 8010 -ErrorAction SilentlyContinue
+    foreach ($conn in $connections) {
+        try {
+            $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+            if ($process) {
+                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($process.Id)").CommandLine
+                if ($commandLine -match "server\.py|openai_compat\.py") {
+                    Write-LogWarning "终止我们的服务器进程 (PID: $($process.Id))"
+                    # 首先尝试优雅终止
+                    Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
+                    Start-Sleep -Seconds 1
+                    # 如果仍在运行，再强制终止
+                    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
+                        Write-LogWarning "优雅终止失败，强制终止进程 (PID: $($process.Id))"
+                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    }
+                } else {
+                    Write-LogWarning "端口8010被其他进程占用 (PID: $($process.Id))，跳过终止"
+                }
+            }
+        }
+        catch {
+            # 忽略错误
+        }
+    }
 
     Write-LogSuccess "所有服务器已停止"
 }

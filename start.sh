@@ -127,23 +127,26 @@ check_network() {
 start_bridge_server() {
     log_info "启动Protobuf桥接服务器..."
 
-    # 检查端口8000是否被占用
-    if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null ; then
-        log_warning "端口8000已被占用，尝试终止现有进程..."
-        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    # 使用小众端口28888避免与其他应用冲突
+    BRIDGE_PORT=28888
+    
+    # 检查端口是否被占用
+    if lsof -Pi :$BRIDGE_PORT -sTCP:LISTEN -t >/dev/null ; then
+        log_warning "端口$BRIDGE_PORT已被占用，尝试终止现有进程..."
+        lsof -ti:$BRIDGE_PORT | xargs kill -9 2>/dev/null || true
         sleep 2
     fi
 
     # 启动服务器（后台运行）
-    nohup python3 server.py > bridge_server.log 2>&1 &
+    nohup python3 server.py --port $BRIDGE_PORT > bridge_server.log 2>&1 &
     BRIDGE_PID=$!
 
     # 等待服务器启动
     log_info "等待Protobuf桥接服务器启动..."
     for i in {1..30}; do
-        if curl -s http://localhost:8000/healthz >/dev/null 2>&1; then
+        if curl -s http://localhost:$BRIDGE_PORT/healthz >/dev/null 2>&1; then
             log_success "Protobuf桥接服务器启动成功 (PID: $BRIDGE_PID)"
-            log_info "📍 Protobuf桥接服务器地址: http://localhost:8000"
+            log_info "📍 Protobuf桥接服务器地址: http://localhost:$BRIDGE_PORT"
             return 0
         fi
         sleep 1
@@ -158,23 +161,26 @@ start_bridge_server() {
 start_openai_server() {
     log_info "启动OpenAI兼容API服务器..."
 
-    # 检查端口8010是否被占用
-    if lsof -Pi :8010 -sTCP:LISTEN -t >/dev/null ; then
-        log_warning "端口8010已被占用，尝试终止现有进程..."
-        lsof -ti:8010 | xargs kill -9 2>/dev/null || true
+    # 使用小众端口28889避免与其他应用冲突
+    OPENAI_PORT=28889
+    
+    # 检查端口是否被占用
+    if lsof -Pi :$OPENAI_PORT -sTCP:LISTEN -t >/dev/null ; then
+        log_warning "端口$OPENAI_PORT已被占用，尝试终止现有进程..."
+        lsof -ti:$OPENAI_PORT | xargs kill -9 2>/dev/null || true
         sleep 2
     fi
 
     # 启动服务器（后台运行）
-    nohup python3 openai_compat.py > openai_server.log 2>&1 &
+    nohup python3 openai_compat.py --port $OPENAI_PORT > openai_server.log 2>&1 &
     OPENAI_PID=$!
 
     # 等待服务器启动
     log_info "等待OpenAI兼容API服务器启动..."
     for i in {1..30}; do
-        if curl -s http://localhost:8010/healthz >/dev/null 2>&1; then
+        if curl -s http://localhost:$OPENAI_PORT/healthz >/dev/null 2>&1; then
             log_success "OpenAI兼容API服务器启动成功 (PID: $OPENAI_PID)"
-            log_info "📍 OpenAI兼容API服务器地址: http://localhost:8010"
+            log_info "📍 OpenAI兼容API服务器地址: http://localhost:$OPENAI_PORT"
             return 0
         fi
         sleep 1
@@ -191,13 +197,13 @@ show_status() {
     echo "=========================================="
     echo "🚀 Warp2Api 服务器状态"
     echo "=========================================="
-    echo "📍 Protobuf桥接服务器: http://localhost:8000"
-    echo "📍 OpenAI兼容API服务器: http://localhost:8010"
-    echo "📍 API文档: http://localhost:8010/docs"
-    echo "🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:8010/v1"
+    echo "📍 Protobuf桥接服务器: http://localhost:28888"
+    echo "📍 OpenAI兼容API服务器: http://localhost:28889"
+    echo "📍 API文档: http://localhost:28889/docs"
+    echo "🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:28889/v1"
     echo "⬇️ KilloCode 下载地址：https://app.kilocode.ai/users/sign_up?referral-code=df16bc60-be35-480f-be2c-b1c6685b6089"
     echo
-    echo "🔧 支持的模型:http://127.0.0.1:8010/v1/models"
+    echo "🔧 支持的模型:http://127.0.0.1:28889/v1/models"
     echo "   • claude-4-sonnet"
     echo "   • claude-4-opus"
     echo "   • claude-4.1-opus"
@@ -222,7 +228,7 @@ show_status() {
     fi
     echo
     echo "📝 测试命令:"
-    echo "curl -X POST http://localhost:8010/v1/chat/completions \\"
+    echo "curl -X POST http://localhost:28889/v1/chat/completions \\"
     echo "  -H \"Content-Type: application/json\" \\"
     echo "  -d '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
     echo
@@ -238,9 +244,9 @@ stop_servers() {
     pkill -f "python3 server.py" 2>/dev/null || true
     pkill -f "python3 openai_compat.py" 2>/dev/null || true
 
-    # 清理可能的僵尸进程
-    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-    lsof -ti:8010 | xargs kill -9 2>/dev/null || true
+    # 清理可能的僵尸进程（使用小众端口）
+    lsof -ti:28888 | xargs kill -9 2>/dev/null || true
+    lsof -ti:28889 | xargs kill -9 2>/dev/null || true
 
     log_success "所有服务器已停止"
 }

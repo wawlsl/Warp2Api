@@ -138,28 +138,31 @@ REM 启动Protobuf桥接服务器
 :start_bridge_server
 call :log_info "启动Protobuf桥接服务器..."
 
-REM 检查端口8000是否被占用
-netstat -an | find "8000" >nul 2>&1
+REM 使用小众端口28888避免与其他应用冲突
+set BRIDGE_PORT=28888
+
+REM 检查端口是否被占用
+netstat -an | find "%BRIDGE_PORT%" >nul 2>&1
 if %errorlevel%==0 (
-    call :log_warning "端口8000已被占用，尝试终止现有进程..."
-    for /f "tokens=5" %%a in ('netstat -ano ^| find "8000"') do (
+    call :log_warning "端口%BRIDGE_PORT%已被占用，尝试终止现有进程..."
+    for /f "tokens=5" %%a in ('netstat -ano ^| find "%BRIDGE_PORT%"') do (
         taskkill /PID %%a /F >nul 2>&1
     )
     timeout /t 2 >nul
 )
 
 REM 启动服务器（后台运行）
-start /B python server.py > bridge_server.log 2>&1
+start /B python server.py --port %BRIDGE_PORT% > bridge_server.log 2>&1
 set BRIDGE_PID=%errorlevel%
 
 REM 等待服务器启动
 call :log_info "等待Protobuf桥接服务器启动..."
 timeout /t 5 >nul
 
-curl -s http://localhost:8000/healthz >nul 2>&1
+curl -s http://localhost:%BRIDGE_PORT%/healthz >nul 2>&1
 if %errorlevel%==0 (
     call :log_success "Protobuf桥接服务器启动成功 (PID: %BRIDGE_PID%)"
-    call :log_info "📍 Protobuf桥接服务器地址: http://localhost:8000"
+    call :log_info "📍 Protobuf桥接服务器地址: http://localhost:%BRIDGE_PORT%"
 ) else (
     call :log_error "Protobuf桥接服务器启动失败"
     type bridge_server.log
@@ -171,28 +174,31 @@ REM 启动OpenAI兼容API服务器
 :start_openai_server
 call :log_info "启动OpenAI兼容API服务器..."
 
-REM 检查端口8010是否被占用
-netstat -an | find "8010" >nul 2>&1
+REM 使用小众端口28889避免与其他应用冲突
+set OPENAI_PORT=28889
+
+REM 检查端口是否被占用
+netstat -an | find "%OPENAI_PORT%" >nul 2>&1
 if %errorlevel%==0 (
-    call :log_warning "端口8010已被占用，尝试终止现有进程..."
-    for /f "tokens=5" %%a in ('netstat -ano ^| find "8010"') do (
+    call :log_warning "端口%OPENAI_PORT%已被占用，尝试终止现有进程..."
+    for /f "tokens=5" %%a in ('netstat -ano ^| find "%OPENAI_PORT%"') do (
         taskkill /PID %%a /F >nul 2>&1
     )
     timeout /t 2 >nul
 )
 
 REM 启动服务器（后台运行）
-start /B python openai_compat.py > openai_server.log 2>&1
+start /B python openai_compat.py --port %OPENAI_PORT% > openai_server.log 2>&1
 set OPENAI_PID=%errorlevel%
 
 REM 等待服务器启动
 call :log_info "等待OpenAI兼容API服务器启动..."
 timeout /t 5 >nul
 
-curl -s http://localhost:8010/healthz >nul 2>&1
+curl -s http://localhost:%OPENAI_PORT%/healthz >nul 2>&1
 if %errorlevel%==0 (
     call :log_success "OpenAI兼容API服务器启动成功 (PID: %OPENAI_PID%)"
-    call :log_info "📍 OpenAI兼容API服务器地址: http://localhost:8010"
+    call :log_info "📍 OpenAI兼容API服务器地址: http://localhost:%OPENAI_PORT%"
 ) else (
     call :log_error "OpenAI兼容API服务器启动失败"
     type openai_server.log
@@ -206,13 +212,13 @@ echo.
 echo ============================================
 echo 🚀 Warp2Api 服务器状态
 echo ============================================
-echo 📍 Protobuf桥接服务器: http://localhost:8000
-echo 📍 OpenAI兼容API服务器: http://localhost:8010
-echo 📍 API文档: http://localhost:8010/docs
-echo 🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:8010/v1
+echo 📍 Protobuf桥接服务器: http://localhost:28888
+echo 📍 OpenAI兼容API服务器: http://localhost:28889
+echo 📍 API文档: http://localhost:28889/docs
+echo 🔗 Roocode / KiloCode baseUrl: http://127.0.0.1:28889/v1
 echo ⬇️ KilloCode 下载地址：https://app.kilocode.ai/users/sign_up?referral-code=df16bc60-be35-480f-be2c-b1c6685b6089
 echo.
-echo 🔧 支持的模型:http://127.0.0.1:8010/v1/models
+echo 🔧 支持的模型:http://127.0.0.1:28889/v1/models
 echo    • claude-4-sonnet
 echo    • claude-4-opus
 echo    • claude-4.1-opus
@@ -242,7 +248,7 @@ if exist ".env" (
 )
 echo.
 echo 📝 测试命令:
-echo curl -X POST http://localhost:8010/v1/chat/completions \
+echo curl -X POST http://localhost:28889/v1/chat/completions \
 echo   -H "Content-Type: application/json" \
 echo   -d "{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}"
 echo.
@@ -298,12 +304,12 @@ REM 停止Python服务器进程
 call :log_info "终止Python服务器进程..."
 taskkill /F /IM python.exe >nul 2>&1
 
-REM 停止端口相关的进程
+REM 停止端口相关的进程（使用小众端口）
 call :log_info "清理端口进程..."
-for /f "tokens=5" %%a in ('netstat -ano ^| find "8000"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| find "28888"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
-for /f "tokens=5" %%a in ('netstat -ano ^| find "8010"') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| find "28889"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
 

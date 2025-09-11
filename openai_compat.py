@@ -15,7 +15,14 @@ from protobuf2openai.app import app  # FastAPI app
 
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
+    
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="OpenAI兼容API服务器")
+    parser.add_argument("--port", type=int, default=8010, help="服务器监听端口 (默认: 8010)")
+    args = parser.parse_args()
+    
     # Refresh JWT on startup before running the server
     try:
         from warp2protobuf.core.auth import refresh_jwt_if_needed as _refresh_jwt
@@ -25,6 +32,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host=os.getenv("HOST", "127.0.0.1"),
-        port=int(os.getenv("PORT", "8010")),
+        port=args.port,
         log_level="info",
     )
