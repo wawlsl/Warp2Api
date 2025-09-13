@@ -84,21 +84,28 @@ REM 使用批处理脚本
 start.bat          # 启动服务器
 stop.bat           # 停止服务器
 stop.bat status    # 查看服务器状态
+test.bat           # 测试API接口功能
 
 REM 或使用 PowerShell 脚本
 .\start.ps1        # 启动服务器
 .\start.ps1 -Stop  # 停止服务器
 .\start.ps1 -Verbose  # 启用详细日志
+
+REM 测试脚本
+test.bat           # 测试API接口功能（静默模式）
+test.bat -v        # 测试API接口功能（详细模式）
 ```
 
 启动脚本会自动：
 - ✅ 检查Python环境和依赖
+- ✅ 自动配置环境变量（包括API_TOKEN自动设置为"0000"）
 - ✅ 按正确顺序启动两个服务器
-- ✅ 验证服务器健康状态
+- ✅ 验证服务器健康状态（循环检查healthz端点）
 - ✅ 显示关键配置信息
-- ✅ 显示完整的 API 接口 Token (WARP_JWT)
+- ✅ 显示完整的 API 接口 Token
 - ✅ 显示 Roocode / KiloCode baseUrl
-- ✅ 实时监控服务器日志
+- ✅ 实时监控服务器日志（verbose模式）
+- ✅ 提供详细的错误处理和状态反馈
 
 ### 📸 运行演示
 
@@ -293,6 +300,7 @@ main();
 | `NO_PROXY` | 不使用代理的主机 | `127.0.0.1,localhost` |
 | `HOST` | 服务器主机地址 | `127.0.0.1` |
 | `PORT` | OpenAI API 服务器端口 | `28889` |
+| `API_TOKEN` | API接口认证令牌 | `0000`（自动设置） |
 | `W2A_VERBOSE` | 启用详细日志输出 | `false` |
 
 ### 项目脚本
@@ -339,8 +347,10 @@ Warp2Api/
 ├── openai_compat.py         # OpenAI API 服务器
 ├── start.sh                 # Linux/macOS 启动脚本
 ├── stop.sh                  # Linux/macOS 停止脚本
+├── test.sh                  # Linux/macOS 测试脚本
 ├── start.bat                # Windows 批处理启动脚本
 ├── stop.bat                 # Windows 批处理停止脚本
+├── test.bat                 # Windows 批处理测试脚本
 ├── start.ps1                # Windows PowerShell 启动脚本
 ├── docs/                    # 项目文档
 │   ├── TROUBLESHOOTING.md   # 故障排除指南
