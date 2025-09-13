@@ -7,17 +7,34 @@ REM 停止所有相关的服务器进程
 
 REM Windows CMD 不支持ANSI颜色，移除颜色定义以保持与Mac脚本一致的逻辑
 
+REM 从 .env 文件加载环境变量（如果存在）
+if exist ".env" (
+    for /f "tokens=*" %%i in (.env) do (
+        set "%%i"
+    )
+)
+
+REM 环境变量控制日志输出，默认不打印日志
+REM 设置 W2A_VERBOSE=true 来启用详细日志输出
+if "%W2A_VERBOSE%"=="" set "W2A_VERBOSE=false"
+
 REM 日志函数
 :log_info
-echo [%DATE% %TIME%] INFO: %~1
+if "%W2A_VERBOSE%"=="true" (
+    echo [%DATE% %TIME%] INFO: %~1
+)
 goto :eof
 
 :log_success
-echo [%DATE% %TIME%] SUCCESS: %~1
+if "%W2A_VERBOSE%"=="true" (
+    echo [%DATE% %TIME%] SUCCESS: %~1
+)
 goto :eof
 
 :log_warning
-echo [%DATE% %TIME%] WARNING: %~1
+if "%W2A_VERBOSE%"=="true" (
+    echo [%DATE% %TIME%] WARNING: %~1
+)
 goto :eof
 
 :log_error
@@ -54,17 +71,41 @@ REM 停止服务器函数
 :stop_servers
 call :log_info "正在停止Warp2Api服务器..."
 
-REM 停止Python服务器进程
+REM 首先尝试通过进程名停止我们的Python进程
 call :log_info "终止Python服务器进程..."
-taskkill /F /IM python.exe >nul 2>&1
+for /f "tokens=2" %%a in ('tasklist /FI "IMAGENAME eq python.exe" /FO CSV ^| find "python.exe"') do (
+    REM 检查进程命令行是否包含我们的脚本
+    for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%a" get CommandLine /value 2^>nul ^| find "server.py"') do (
+        call :log_info "终止Protobuf桥接服务器进程 (PID: %%a)"
+        taskkill /PID %%a /F >nul 2>&1
+    )
+    for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%a" get CommandLine /value 2^>nul ^| find "openai_compat.py"') do (
+        call :log_info "终止OpenAI兼容API服务器进程 (PID: %%a)"
+        taskkill /PID %%a /F >nul 2>&1
+    )
+)
 
-REM 停止端口相关的进程
+REM 停止端口相关的进程（作为备用方法）
 call :log_info "清理端口进程..."
 for /f "tokens=5" %%a in ('netstat -ano ^| find "28888"') do (
-    taskkill /PID %%a /F >nul 2>&1
+    REM 检查是否是我们自己的进程
+    for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%a" get CommandLine /value 2^>nul') do (
+        echo %%c | findstr /C:"server.py" >nul
+        if !errorlevel!==0 (
+            call :log_info "终止端口28888的服务器进程 (PID: %%a)"
+            taskkill /PID %%a /F >nul 2>&1
+        )
+    )
 )
 for /f "tokens=5" %%a in ('netstat -ano ^| find "28889"') do (
-    taskkill /PID %%a /F >nul 2>&1
+    REM 检查是否是我们自己的进程
+    for /f "tokens=*" %%c in ('wmic process where "ProcessId=%%a" get CommandLine /value 2^>nul') do (
+        echo %%c | findstr /C:"openai_compat.py" >nul
+        if !errorlevel!==0 (
+            call :log_info "终止端口28889的服务器进程 (PID: %%a)"
+            taskkill /PID %%a /F >nul 2>&1
+        )
+    )
 )
 
 REM 等待进程完全停止
@@ -108,6 +149,10 @@ REM 主函数
 if "%1"=="status" (
     call :show_status
 ) else if "%1"=="help" (
+    call :show_help
+) else if "%1"=="-h" (
+    call :show_help
+) else if "%1"=="--help" (
     call :show_help
 ) else if "%1"=="" (
     call :show_status

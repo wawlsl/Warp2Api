@@ -55,7 +55,7 @@ if exist ".env" (
         call :log_info "API_TOKEN 已存在且非默认值，跳过设置"
     )
 
-    REM 设置日志开关为开启状态
+    REM 设置日志开关为默认状态（静默模式）
     set "VERBOSE_FOUND="
     for /f "tokens=1,* delims==" %%a in (.env) do (
         if "%%a"=="W2A_VERBOSE" (
@@ -63,25 +63,25 @@ if exist ".env" (
         )
     )
     if not defined VERBOSE_FOUND (
-        echo W2A_VERBOSE=true>> ".env"
-        call :log_success "已启用详细日志输出"
+        echo W2A_VERBOSE=false>> ".env"
+        call :log_success "已设置日志输出为静默模式"
     )
 )
 goto :eof
 
+REM 设置代理排除列表，避免本地服务被代理干扰
+if "%NO_PROXY%"=="" set "NO_PROXY=127.0.0.1,localhost"
+
 REM 从 .env 文件加载环境变量（如果存在）
 if exist ".env" (
-    for /f "tokens=*" %%i in (.env) do (
-        set "%%i"
-    )
-)
+     for /f "tokens=*" %%i in (.env) do (
+         set "%%i"
+     )
+ )
 
 REM 环境变量控制日志输出，默认不打印日志
 REM 设置 W2A_VERBOSE=true 来启用详细日志输出
 if "%W2A_VERBOSE%"=="" set "W2A_VERBOSE=false"
-
-REM 设置代理排除列表，避免本地服务被代理干扰
-if "%NO_PROXY%"=="" set "NO_PROXY=127.0.0.1,localhost"
 
 REM 日志函数
 :log_info
@@ -217,17 +217,21 @@ set BRIDGE_PID=%errorlevel%
 
 REM 等待服务器启动
 call :log_info "等待Protobuf桥接服务器启动..."
-timeout /t 5 >nul
-
-curl -s http://localhost:%BRIDGE_PORT%/healthz >nul 2>&1
-if %errorlevel%==0 (
-    call :log_success "Protobuf桥接服务器启动成功 (PID: %BRIDGE_PID%)"
-    call :log_info "📍 Protobuf桥接服务器地址: http://localhost:%BRIDGE_PORT%"
-) else (
-    call :log_error "Protobuf桥接服务器启动失败"
-    type bridge_server.log
-    exit /b 1
+for /l %%i in (1,1,30) do (
+    curl -s http://localhost:%BRIDGE_PORT%/healthz >nul 2>&1
+    if %errorlevel%==0 (
+        call :log_success "Protobuf桥接服务器启动成功 (PID: %BRIDGE_PID%)"
+        call :log_info "📍 Protobuf桥接服务器地址: http://localhost:%BRIDGE_PORT%"
+        goto :bridge_started
+    )
+    timeout /t 1 >nul
 )
+
+call :log_error "Protobuf桥接服务器启动失败"
+type bridge_server.log
+exit /b 1
+
+:bridge_started
 goto :eof
 
 REM 启动OpenAI兼容API服务器
@@ -253,17 +257,21 @@ set OPENAI_PID=%errorlevel%
 
 REM 等待服务器启动
 call :log_info "等待OpenAI兼容API服务器启动..."
-timeout /t 5 >nul
-
-curl -s http://localhost:%OPENAI_PORT%/healthz >nul 2>&1
-if %errorlevel%==0 (
-    call :log_success "OpenAI兼容API服务器启动成功 (PID: %OPENAI_PID%)"
-    call :log_info "📍 OpenAI兼容API服务器地址: http://localhost:%OPENAI_PORT%"
-) else (
-    call :log_error "OpenAI兼容API服务器启动失败"
-    type openai_server.log
-    exit /b 1
+for /l %%i in (1,1,30) do (
+    curl -s http://localhost:%OPENAI_PORT%/healthz >nul 2>&1
+    if %errorlevel%==0 (
+        call :log_success "OpenAI兼容API服务器启动成功 (PID: %OPENAI_PID%)"
+        call :log_info "📍 OpenAI兼容API服务器地址: http://localhost:%OPENAI_PORT%"
+        goto :openai_started
+    )
+    timeout /t 1 >nul
 )
+
+call :log_error "OpenAI兼容API服务器启动失败"
+type openai_server.log
+exit /b 1
+
+:openai_started
 goto :eof
 
 REM 显示服务器状态
@@ -349,16 +357,30 @@ if "%W2A_VERBOSE%"=="true" (
     echo.
     echo 📋 实时日志监控 (按 Ctrl+C 退出):
     echo ----------------------------------------
-    REM Windows 下没有简单的方式同时监控两个日志文件
-    REM 可以建议用户分别查看日志文件
-    echo 提示: 可以使用以下命令查看日志:
+    echo 提示: 日志文件保存在 bridge_server.log 和 openai_server.log
+    echo 可以使用以下命令查看最新日志:
     echo   • type bridge_server.log
     echo   • type openai_server.log
+    echo.
+    echo 显示最近的日志内容:
+    echo.
+    echo === Protobuf桥接服务器日志 ===
+    if exist "bridge_server.log" (
+        type bridge_server.log | findstr /r /c:".*" | tail -n 10 2>nul || type bridge_server.log
+    ) else (
+        echo 日志文件尚未生成
+    )
+    echo.
+    echo === OpenAI兼容API服务器日志 ===
+    if exist "openai_server.log" (
+        type openai_server.log | findstr /r /c:".*" | tail -n 10 2>nul || type openai_server.log
+    ) else (
+        echo 日志文件尚未生成
+    )
+    echo.
     pause
 ) else (
-    echo ✅ Warp2Api启动完成！服务器正在后台运行。
-    echo 💡 如需查看详细日志，请设置环境变量: set W2A_VERBOSE=true
-    echo 🛑 要停止服务器，请运行: stop.bat
+    call :log_success "Warp2Api启动完成！服务器正在后台运行。"
 )
 goto :eof
 

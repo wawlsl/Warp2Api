@@ -83,7 +83,7 @@ function Initialize-Environment {
             Write-LogInfo "API_TOKEN 已存在且非默认值，跳过设置"
         }
 
-        # 设置日志开关为开启状态
+        # 设置日志开关为默认状态（静默模式）
         $verboseFound = $false
         foreach ($line in $envContent) {
             if ($line -match '^W2A_VERBOSE=') {
@@ -92,8 +92,8 @@ function Initialize-Environment {
             }
         }
         if (-not $verboseFound) {
-            Add-Content ".env" "W2A_VERBOSE=true"
-            Write-LogSuccess "已启用详细日志输出"
+            Add-Content ".env" "W2A_VERBOSE=false"
+            Write-LogSuccess "已设置日志输出为静默模式"
         }
     }
 
@@ -106,8 +106,8 @@ function Initialize-Environment {
                 [Environment]::SetEnvironmentVariable($key, $value)
             }
         }
-        # 重新设置日志开关变量
-        $env:W2A_VERBOSE = if ($env:W2A_VERBOSE) { $env:W2A_VERBOSE } else { "true" }
+        # 重新设置日志开关变量，保持原有值或默认false
+        $env:W2A_VERBOSE = if ($env:W2A_VERBOSE) { $env:W2A_VERBOSE } else { "false" }
     }
 }
 
@@ -403,7 +403,14 @@ function Show-Status {
     Write-Host ""
     Write-Host "📝 测试命令:"
     $warpApiToken = if ($warpApiToken) { $warpApiToken } else { "your_token_here" }
+    Write-Host "PowerShell命令:"
     Write-Host "Invoke-WebRequest -Uri 'http://localhost:28889/v1/chat/completions' -Method POST -ContentType 'application/json' -Headers @{\"Authorization\" = \"Bearer $warpApiToken\"} -Body '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
+    Write-Host ""
+    Write-Host "cURL命令:"
+    Write-Host "curl -X POST http://localhost:28889/v1/chat/completions \"
+    Write-Host "  -H \"Content-Type: application/json\" \"
+    Write-Host "  -H \"Authorization: Bearer $warpApiToken\" \"
+    Write-Host "  -d '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
     Write-Host ""
     Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
     Write-Host "============================================"
@@ -540,9 +547,7 @@ function Main {
         }
     }
     else {
-        Write-Host "✅ Warp2Api启动完成！服务器正在后台运行。"
-        Write-Host "💡 如需查看详细日志，请使用 -Verbose 参数: .\start.ps1 -Verbose"
-        Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
+        Write-LogSuccess "Warp2Api启动完成！服务器正在后台运行。"
     }
 }
 

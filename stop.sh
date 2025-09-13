@@ -5,6 +5,15 @@
 
 set -e  # 遇到错误立即退出
 
+# 从 .env 文件加载环境变量（如果存在）
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+fi
+
+# 环境变量控制日志输出，默认不打印日志
+# 设置 W2A_VERBOSE=true 来启用详细日志输出
+VERBOSE="${W2A_VERBOSE:-false}"
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,18 +23,25 @@ NC='\033[0m' # No Color
 
 # 日志函数
 log_info() {
-    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
+    if [ "$VERBOSE" = "true" ]; then
+        echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
+    fi
 }
 
 log_success() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $1${NC}"
+    if [ "$VERBOSE" = "true" ]; then
+        echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $1${NC}"
+    fi
 }
 
 log_warning() {
-    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
+    if [ "$VERBOSE" = "true" ]; then
+        echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
+    fi
 }
 
 log_error() {
+    # 错误信息始终显示，即使在静默模式下
     echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}"
 }
 

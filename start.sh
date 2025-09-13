@@ -293,13 +293,13 @@ auto_configure() {
             log_info "API_TOKEN 已存在且非默认值，跳过设置"
         fi
 
-        # 设置日志开关为开启状态
+        # 设置日志开关为默认状态（静默模式）
         if grep -q "^W2A_VERBOSE=" .env; then
-            sed -i '' "s/^W2A_VERBOSE=.*/W2A_VERBOSE=true/" .env
-            log_success "已启用详细日志输出"
+            sed -i '' "s/^W2A_VERBOSE=.*/W2A_VERBOSE=false/" .env
+            log_success "已设置日志输出为静默模式"
         else
-            echo "W2A_VERBOSE=true" >> .env
-            log_success "已启用详细日志输出"
+            echo "W2A_VERBOSE=false" >> .env
+            log_success "已设置日志输出为静默模式"
         fi
     fi
 
@@ -351,9 +351,7 @@ main() {
         tail -f bridge_server.log openai_server.log &
         TAIL_PID=$!
     else
-        echo "✅ Warp2Api启动完成！服务器正在后台运行。"
-        echo "💡 如需查看详细日志，请设置环境变量: export W2A_VERBOSE=true"
-        echo "🛑 要停止服务器，请运行: ./stop.sh"
+        log_success "Warp2Api启动完成！服务器正在后台运行。"
         exit 0
     fi
 
