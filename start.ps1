@@ -32,10 +32,94 @@ if (Test-Path ".env") {
             [Environment]::SetEnvironmentVariable($key, $value)
         }
     }
+# 自动配置环境变量
+function Initialize-Environment {
+    Write-LogInfo "自动配置环境变量..."
+
+    # 如果 .env 不存在，从 .env.example 复制
+    if (-not (Test-Path ".env")) {
+        if (Test-Path ".env.example") {
+            Copy-Item ".env.example" ".env"
+            Write-LogSuccess "已从 .env.example 复制配置到 .env"
+        } else {
+            Write-LogWarning ".env.example 文件不存在，跳过配置复制"
+        }
+    }
+
+    # 检查并生成 API_TOKEN
+    if (Test-Path ".env") {
+        $envContent = Get-Content ".env"
+        $currentApiToken = $null
+
+        foreach ($line in $envContent) {
+            if ($line -match '^API_TOKEN=(.*)') {
+                $currentApiToken = $matches[1].Trim('"')
+                break
+            }
+        }
+
+        # 如果API_TOKEN不存在或为默认值001，则设置为固定值0000
+        if (-not $currentApiToken -or $currentApiToken -eq "001") {
+            $apiToken = "0000"
+
+            # 替换或添加API_TOKEN行
+            $newContent = @()
+            $found = $false
+            foreach ($line in $envContent) {
+                if ($line -match '^API_TOKEN=') {
+                    $newContent += "API_TOKEN=$apiToken"
+                    $found = $true
+                } else {
+                    $newContent += $line
+                }
+            }
+            if (-not $found) {
+                $newContent += "API_TOKEN=$apiToken"
+            }
+
+            $newContent | Set-Content ".env"
+            Write-LogSuccess "已设置固定API_TOKEN: $apiToken"
+        } else {
+            Write-LogInfo "API_TOKEN 已存在且非默认值，跳过设置"
+        }
+
+        # 设置日志开关为开启状态
+        $verboseFound = $false
+        foreach ($line in $envContent) {
+            if ($line -match '^W2A_VERBOSE=') {
+                $verboseFound = $true
+                break
+            }
+        }
+        if (-not $verboseFound) {
+            Add-Content ".env" "W2A_VERBOSE=true"
+            Write-LogSuccess "已启用详细日志输出"
+        }
+    }
+
+    # 重新加载环境变量
+    if (Test-Path ".env") {
+        Get-Content ".env" | ForEach-Object {
+            if ($_ -match '^([^#][^=]+)=(.*)$') {
+                $key = $matches[1].Trim()
+                $value = $matches[2].Trim()
+                [Environment]::SetEnvironmentVariable($key, $value)
+            }
+        }
+        # 重新设置日志开关变量
+        $env:W2A_VERBOSE = if ($env:W2A_VERBOSE) { $env:W2A_VERBOSE } else { "true" }
+    }
+}
+
 }
 
 # 环境变量控制日志输出，默认不打印日志
 $env:W2A_VERBOSE = if ($Verbose) { "true" } else { $env:W2A_VERBOSE ?? "false" }
+
+# 设置代理排除列表，避免本地服务被代理干扰
+if (-not $env:NO_PROXY) {
+    $env:NO_PROXY = "127.0.0.1,localhost"
+}
 
 # 日志函数
 function Write-LogInfo {
@@ -304,153 +388,7 @@ function Show-Status {
         $envContent = Get-Content ".env"
         $warpApiToken = $null
         foreach ($line in $envContent) {
-            if ($line -match '^API_TOKEN=(.*)
-    Write-Host ""
-    Write-Host "📝 测试命令:"
-    $warpApiToken = if ($warpApiToken) { $warpApiToken } else { "your_token_here" }
-    Write-Host "Invoke-WebRequest -Uri 'http://localhost:28889/v1/chat/completions' -Method POST -ContentType 'application/json' -Headers @{\"Authorization\" = \"Bearer $warpApiToken\"} -Body '{\"model\": \"claude-4-sonnet\", \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}], \"stream\": true}'"
-    Write-Host ""
-    Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
-    Write-Host "============================================"
-}
-
-# 停止服务器
-function Stop-Servers {
-    Write-LogInfo "停止所有服务器..."
-
-    # 首先尝试通过进程名优雅终止
-    Write-LogInfo "尝试通过进程名优雅终止服务器..."
-    Get-Process | Where-Object { $_.ProcessName -eq "python" -or $_.ProcessName -eq "python3" } | ForEach-Object {
-        try {
-            $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine
-            if ($commandLine -match "server\.py|openai_compat\.py") {
-                Write-LogInfo "优雅终止服务器进程 (PID: $($_.Id))"
-                Stop-Process -Id $_.Id -ErrorAction SilentlyContinue
-            }
-        }
-        catch {
-            # 忽略无法获取命令行的进程
-        }
-    }
-    Start-Sleep -Seconds 2
-
-    # 检查并清理端口进程，只终止我们的Python进程
-    Write-LogInfo "检查并清理端口进程..."
-
-    # 检查端口28888
-    $connections = Get-NetTCPConnection -LocalPort 28888 -ErrorAction SilentlyContinue
-    foreach ($conn in $connections) {
-        try {
-            $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
-            if ($process) {
-                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($process.Id)").CommandLine
-                if ($commandLine -match "server\.py|openai_compat\.py") {
-                    Write-LogWarning "终止我们的服务器进程 (PID: $($process.Id))"
-                    # 首先尝试优雅终止
-                    Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 1
-                    # 如果仍在运行，再强制终止
-                    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
-                        Write-LogWarning "优雅终止失败，强制终止进程 (PID: $($process.Id))"
-                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                    }
-                } else {
-                    Write-LogWarning "端口28888被其他进程占用 (PID: $($process.Id))，跳过终止"
-                }
-            }
-        }
-        catch {
-            # 忽略错误
-        }
-    }
-
-    # 检查端口28889
-    $connections = Get-NetTCPConnection -LocalPort 28889 -ErrorAction SilentlyContinue
-    foreach ($conn in $connections) {
-        try {
-            $process = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
-            if ($process) {
-                $commandLine = (Get-WmiObject Win32_Process -Filter "ProcessId=$($process.Id)").CommandLine
-                if ($commandLine -match "server\.py|openai_compat\.py") {
-                    Write-LogWarning "终止我们的服务器进程 (PID: $($process.Id))"
-                    # 首先尝试优雅终止
-                    Stop-Process -Id $process.Id -ErrorAction SilentlyContinue
-                    Start-Sleep -Seconds 1
-                    # 如果仍在运行，再强制终止
-                    if (Get-Process -Id $process.Id -ErrorAction SilentlyContinue) {
-                        Write-LogWarning "优雅终止失败，强制终止进程 (PID: $($process.Id))"
-                        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-                    }
-                } else {
-                    Write-LogWarning "端口28889被其他进程占用 (PID: $($process.Id))，跳过终止"
-                }
-            }
-        }
-        catch {
-            # 忽略错误
-        }
-    }
-
-    Write-LogSuccess "所有服务器已停止"
-}
-
-# 主函数
-function Main {
-    if ($Stop) {
-        Stop-Servers
-        return
-    }
-
-    Write-Host "============================================"
-    Write-Host "🚀 Warp2Api PowerShell 快速启动脚本"
-    Write-Host "============================================"
-
-    # 检查环境
-    Test-PythonVersion
-    Test-Dependencies
-    Test-NetworkConnectivity
-
-    # 启动服务器
-    $bridgeStarted = Start-BridgeServer
-    if (-not $bridgeStarted) {
-        Write-LogError "Protobuf桥接服务器启动失败，退出"
-        exit 1
-    }
-
-    $openaiStarted = Start-OpenAIServer
-    if (-not $openaiStarted) {
-        Write-LogError "OpenAI兼容API服务器启动失败，退出"
-        exit 1
-    }
-
-    # 显示状态信息
-    Show-Status
-
-    if ($env:W2A_VERBOSE -eq "true") {
-        Write-LogSuccess "Warp2Api启动完成！"
-        Write-LogInfo "服务器正在后台运行，按 Ctrl+C 退出"
-
-        Write-Host ""
-        Write-Host "📋 实时日志监控 (按 Ctrl+C 退出):"
-        Write-Host "----------------------------------------"
-
-        # PowerShell 中可以同时监控多个日志文件
-        try {
-            Get-Content "bridge_server.log", "openai_server.log" -Wait -ErrorAction Stop
-        }
-        catch {
-            Write-Host "日志监控已停止"
-        }
-    }
-    else {
-        Write-Host "✅ Warp2Api启动完成！服务器正在后台运行。"
-        Write-Host "💡 如需查看详细日志，请使用 -Verbose 参数: .\start.ps1 -Verbose"
-        Write-Host "🛑 要停止服务器，请运行: .\stop.ps1"
-    }
-}
-
-# 执行主函数
-Main) {
+            if ($line -match '^API_TOKEN=(.*)') {
                 $warpApiToken = $matches[1].Trim('"')
             }
         }
@@ -552,6 +490,8 @@ function Stop-Servers {
 }
 
 # 主函数
+# 自动配置环境变量
+Initialize-Environment
 function Main {
     if ($Stop) {
         Stop-Servers

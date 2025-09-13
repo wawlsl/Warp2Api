@@ -60,13 +60,9 @@ stop_servers() {
         log_warning "某些进程可能仍在运行，请手动检查"
     fi
 
-    # 清理日志文件（可选）
-    read -p "是否清理日志文件？(y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -f *.log
-        log_info "日志文件已清理"
-    fi
+    # 清理日志文件（自动清理）
+    rm -f *.log 2>/dev/null || true
+    log_info "日志文件已清理"
 }
 
 # 显示当前状态

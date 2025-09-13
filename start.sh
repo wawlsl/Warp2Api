@@ -13,6 +13,12 @@ fi
 # 环境变量控制日志输出，默认不打印日志
 # 设置 W2A_VERBOSE=true 来启用详细日志输出
 VERBOSE="${W2A_VERBOSE:-false}"
+# 设置代理排除列表，避免本地服务被代理干扰
+export NO_PROXY="${NO_PROXY:-127.0.0.1,localhost}"
+# 如果未设置NO_PROXY，则设置为默认值
+if [ -z "$NO_PROXY" ]; then
+    export NO_PROXY="127.0.0.1,localhost"
+fi
 
 # 颜色定义
 RED='\033[0;31m'
@@ -132,7 +138,7 @@ start_bridge_server() {
     
     # 检查端口是否被占用
     if lsof -Pi :$BRIDGE_PORT -sTCP:LISTEN -t >/dev/null ; then
-        log_warning "端口$BRIDGE_PORT已被占用，尝试终止现有进程..."
+        log_warning "端口${BRIDGE_PORT}已被占用，尝试终止现有进程..."
         lsof -ti:$BRIDGE_PORT | xargs kill -9 2>/dev/null || true
         sleep 2
     fi
@@ -166,7 +172,7 @@ start_openai_server() {
     
     # 检查端口是否被占用
     if lsof -Pi :$OPENAI_PORT -sTCP:LISTEN -t >/dev/null ; then
-        log_warning "端口$OPENAI_PORT已被占用，尝试终止现有进程..."
+        log_warning "端口${OPENAI_PORT}已被占用，尝试终止现有进程..."
         lsof -ti:$OPENAI_PORT | xargs kill -9 2>/dev/null || true
         sleep 2
     fi
@@ -252,6 +258,59 @@ stop_servers() {
     log_success "所有服务器已停止"
 }
 
+# 自动配置环境变量
+auto_configure() {
+    log_info "自动配置环境变量..."
+
+    # 如果 .env 不存在，从 .env.example 复制
+    if [ ! -f ".env" ]; then
+        if [ -f ".env.example" ]; then
+            cp .env.example .env
+            log_success "已从 .env.example 复制配置到 .env"
+        else
+            log_warning ".env.example 文件不存在，跳过配置复制"
+        fi
+    fi
+
+    # 检查并生成 API_TOKEN
+    if [ -f ".env" ]; then
+        # 获取当前API_TOKEN值（排除注释行）
+        CURRENT_API_TOKEN=$(grep "^API_TOKEN=" .env 2>/dev/null | head -1 | cut -d'=' -f2- | sed 's/^"//' | sed 's/"$//')
+
+        # 如果API_TOKEN不存在或为默认值001，则设置为固定值0000
+        if [ -z "$CURRENT_API_TOKEN" ] || [ "$CURRENT_API_TOKEN" = "001" ]; then
+            # 设置固定API_TOKEN
+            API_TOKEN="0000"
+
+            # 替换或添加API_TOKEN行
+            if grep -q "^API_TOKEN=" .env; then
+                sed -i '' "s/^API_TOKEN=.*/API_TOKEN=$API_TOKEN/" .env
+            else
+                echo "API_TOKEN=$API_TOKEN" >> .env
+            fi
+            log_success "已设置固定API_TOKEN: $API_TOKEN"
+        else
+            log_info "API_TOKEN 已存在且非默认值，跳过设置"
+        fi
+
+        # 设置日志开关为开启状态
+        if grep -q "^W2A_VERBOSE=" .env; then
+            sed -i '' "s/^W2A_VERBOSE=.*/W2A_VERBOSE=true/" .env
+            log_success "已启用详细日志输出"
+        else
+            echo "W2A_VERBOSE=true" >> .env
+            log_success "已启用详细日志输出"
+        fi
+    fi
+
+    # 重新加载环境变量
+    if [ -f ".env" ]; then
+        export $(grep -v '^#' .env | xargs)
+        # 重新设置日志开关变量
+        VERBOSE="${W2A_VERBOSE:-false}"
+    fi
+}
+
 # 主函数
 main() {
     echo "=========================================="
@@ -263,6 +322,9 @@ main() {
         stop_servers
         exit 0
     fi
+
+    # 自动配置环境变量
+    auto_configure
 
     # 检查环境
     check_python

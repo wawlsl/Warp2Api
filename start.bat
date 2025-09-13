@@ -5,12 +5,69 @@ setlocal enabledelayedexpansion
 REM Warp2Api Windows 快速启动脚本
 REM 启动两个服务器：Protobuf桥接服务器和OpenAI兼容API服务器
 
-REM 颜色定义 (Windows CMD)
-set "RED=[91m"
-set "GREEN=[92m"
-set "YELLOW=[93m"
-set "BLUE=[94m"
-set "NC=[0m"
+REM Windows CMD 不支持ANSI颜色，移除颜色定义以保持与Mac脚本一致的逻辑
+
+REM 自动配置环境变量
+:auto_configure
+call :log_info "自动配置环境变量..."
+
+REM 如果 .env 不存在，从 .env.example 复制
+if not exist ".env" (
+    if exist ".env.example" (
+        copy ".env.example" ".env" >nul
+        call :log_success "已从 .env.example 复制配置到 .env"
+    ) else (
+        call :log_warning ".env.example 文件不存在，跳过配置复制"
+    )
+)
+
+REM 检查并生成 API_TOKEN
+if exist ".env" (
+    REM 获取当前API_TOKEN值
+    set "CURRENT_API_TOKEN="
+    for /f "tokens=1,* delims==" %%a in (.env) do (
+        if "%%a"=="API_TOKEN" (
+            set "CURRENT_API_TOKEN=%%b"
+            set "CURRENT_API_TOKEN=!CURRENT_API_TOKEN:"=!"
+        )
+    )
+
+    REM 如果API_TOKEN不存在或为默认值001，则设置为固定值0000
+    if "!CURRENT_API_TOKEN!"=="" (
+        set "API_TOKEN=0000"
+        echo API_TOKEN=!API_TOKEN!>> ".env"
+        call :log_success "已设置固定API_TOKEN: !API_TOKEN!"
+    ) else if "!CURRENT_API_TOKEN!"=="001" (
+        set "API_TOKEN=0000"
+        REM 替换API_TOKEN行
+        (for /f "tokens=*" %%i in (.env) do (
+            set "line=%%i"
+            echo !line! | findstr "^API_TOKEN=" >nul
+            if !errorlevel!==0 (
+                echo API_TOKEN=!API_TOKEN!
+            ) else (
+                echo !line!
+            )
+        )) > ".env.tmp"
+        move ".env.tmp" ".env" >nul
+        call :log_success "已设置固定API_TOKEN: !API_TOKEN!"
+    ) else (
+        call :log_info "API_TOKEN 已存在且非默认值，跳过设置"
+    )
+
+    REM 设置日志开关为开启状态
+    set "VERBOSE_FOUND="
+    for /f "tokens=1,* delims==" %%a in (.env) do (
+        if "%%a"=="W2A_VERBOSE" (
+            set "VERBOSE_FOUND=1"
+        )
+    )
+    if not defined VERBOSE_FOUND (
+        echo W2A_VERBOSE=true>> ".env"
+        call :log_success "已启用详细日志输出"
+    )
+)
+goto :eof
 
 REM 从 .env 文件加载环境变量（如果存在）
 if exist ".env" (
@@ -23,27 +80,30 @@ REM 环境变量控制日志输出，默认不打印日志
 REM 设置 W2A_VERBOSE=true 来启用详细日志输出
 if "%W2A_VERBOSE%"=="" set "W2A_VERBOSE=false"
 
+REM 设置代理排除列表，避免本地服务被代理干扰
+if "%NO_PROXY%"=="" set "NO_PROXY=127.0.0.1,localhost"
+
 REM 日志函数
 :log_info
 if "%W2A_VERBOSE%"=="true" (
-    echo %BLUE%[%DATE% %TIME%] INFO: %~1%NC%
+    echo [%DATE% %TIME%] INFO: %~1
 )
 goto :eof
 
 :log_success
 if "%W2A_VERBOSE%"=="true" (
-    echo %GREEN%[%DATE% %TIME%] SUCCESS: %~1%NC%
+    echo [%DATE% %TIME%] SUCCESS: %~1
 )
 goto :eof
 
 :log_warning
 if "%W2A_VERBOSE%"=="true" (
-    echo %YELLOW%[%DATE% %TIME%] WARNING: %~1%NC%
+    echo [%DATE% %TIME%] WARNING: %~1
 )
 goto :eof
 
 :log_error
-echo %RED%[%DATE% %TIME%] ERROR: %~1%NC%
+echo [%DATE% %TIME%] ERROR: %~1
 goto :eof
 
 REM 检查Python版本
@@ -260,6 +320,9 @@ echo ============================================
 goto :eof
 
 REM 主函数
+REM 自动配置环境变量
+call :auto_configure
+
 :main
 echo ============================================
 echo 🚀 Warp2Api Windows 快速启动脚本

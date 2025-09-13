@@ -5,28 +5,23 @@ setlocal enabledelayedexpansion
 REM Warp2Api Windows 停止脚本
 REM 停止所有相关的服务器进程
 
-REM 颜色定义 (Windows CMD)
-set "RED=[91m"
-set "GREEN=[92m"
-set "YELLOW=[93m"
-set "BLUE=[94m"
-set "NC=[0m"
+REM Windows CMD 不支持ANSI颜色，移除颜色定义以保持与Mac脚本一致的逻辑
 
 REM 日志函数
 :log_info
-echo %BLUE%[%DATE% %TIME%] INFO: %~1%NC%
+echo [%DATE% %TIME%] INFO: %~1
 goto :eof
 
 :log_success
-echo %GREEN%[%DATE% %TIME%] SUCCESS: %~1%NC%
+echo [%DATE% %TIME%] SUCCESS: %~1
 goto :eof
 
 :log_warning
-echo %YELLOW%[%DATE% %TIME%] WARNING: %~1%NC%
+echo [%DATE% %TIME%] WARNING: %~1
 goto :eof
 
 :log_error
-echo %RED%[%DATE% %TIME%] ERROR: %~1%NC%
+echo [%DATE% %TIME%] ERROR: %~1
 goto :eof
 
 REM 显示当前状态
@@ -87,12 +82,9 @@ if %PORT_28888_RUNNING%==1 if %PORT_28889_RUNNING%==1 (
     call :log_warning "某些进程可能仍在运行，请手动检查"
 )
 
-REM 清理日志文件（可选）
-set /p choice="是否清理日志文件？(y/N): "
-if /i "!choice!"=="y" (
-    del *.log 2>nul
-    call :log_info "日志文件已清理"
-)
+REM 清理日志文件（自动清理，与Mac脚本保持一致）
+del *.log 2>nul
+call :log_info "日志文件已清理"
 goto :eof
 
 REM 显示帮助信息
