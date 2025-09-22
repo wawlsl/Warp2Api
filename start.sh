@@ -284,7 +284,7 @@ auto_configure() {
 
             # 替换或添加API_TOKEN行
             if grep -q "^API_TOKEN=" .env; then
-                sed -i '' "s/^API_TOKEN=.*/API_TOKEN=$API_TOKEN/" .env
+                sed -i 's/^API_TOKEN=.*/API_TOKEN=0000/' .env
             else
                 echo "API_TOKEN=$API_TOKEN" >> .env
             fi
@@ -295,7 +295,7 @@ auto_configure() {
 
         # 设置日志开关为默认状态（静默模式）
         if grep -q "^W2A_VERBOSE=" .env; then
-            sed -i '' "s/^W2A_VERBOSE=.*/W2A_VERBOSE=false/" .env
+            sed -i 's/^W2A_VERBOSE=.*/W2A_VERBOSE=false/' .env
             log_success "已设置日志输出为静默模式"
         else
             echo "W2A_VERBOSE=false" >> .env
